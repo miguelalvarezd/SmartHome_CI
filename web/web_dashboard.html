@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemelo Digital - Sistema Domótico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95em;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .device-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .device-icon {
+            font-size: 2.5em;
+        }
+
+        .device-title {
+            flex: 1;
+            margin-left: 15px;
+        }
+
+        .device-title h3 {
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 5px;
+        }
+
+        .device-type {
+            color: #666;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .device-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .device-status.on {
+            color: #10b981;
+        }
+
+        .device-status.off {
+            color: #6b7280;
+        }
+
+        .device-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-on {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-on:hover {
+            background: #059669;
+            transform: scale(1.05);
+        }
+
+        .btn-off {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-off:hover {
+            background: #4b5563;
+            transform: scale(1.05);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .auto-off-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .auto-off-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .auto-off-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .auto-off-controls input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .auto-off-controls input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-auto {
+            background: #f59e0b;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        .btn-auto:hover {
+            background: #d97706;
+        }
+
+        .auto-off-info {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #fef3c7;
+            border-radius: 6px;
+            font-size: 0.85em;
+            color: #92400e;
+            display: none;
+        }
+
+        .auto-off-info.active {
+            display: block;
+        }
+
+        .log-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .log-header h2 {
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .btn-refresh {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-refresh:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
+        .log-entries {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .log-entry {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #374151;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s;
+        }
+
+        .notification.show {
+            display: block;
+        }
+
+        .notification.success {
+            border-left: 5px solid #10b981;
+        }
+
+        .notification.error {
+            border-left: 5px solid #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .last-update {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏠 Gemelo Digital - Sistema Domótico</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot" id="connectionDot"></div>
+                    <span id="connectionStatus">Conectando...</span>
+                </div>
+                <div class="status-item">
+                    <span>🔄 Actualización automática: 5s</span>
+                </div>
+                <div class="status-item">
+                    <span id="lastUpdateTime">Nunca</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="loadingIndicator" class="loading">
+            <div class="spinner"></div>
+            <p>Cargando dispositivos...</p>
+        </div>
+
+        <div id="devicesGrid" class="grid" style="display: none;">
+            <!-- Los dispositivos se cargarán dinámicamente aquí -->
+        </div>
+
+        <div id="logPanel" class="log-panel" style="display: none;">
+            <div class="log-header">
+                <h2>📜 Historial de Eventos</h2>
+                <button class="btn-refresh" onclick="loadLog()">🔄 Actualizar</button>
+            </div>
+            <div class="log-entries" id="logEntries">
+                <div class="log-entry">Cargando eventos...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification">
+        <span id="notificationMessage"></span>
+    </div>
+
+    <script>
+        // Configuración
+        const API_BASE_URL = 'http://localhost:8080/api';
+        const UPDATE_INTERVAL = 5000; // 5 segundos
+
+        let updateTimer = null;
+        let isConnected = false;
+
+        // ==================== UTILIDADES ====================
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const messageEl = document.getElementById('notificationMessage');
+            
+            messageEl.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const dot = document.getElementById('connectionDot');
+            const status = document.getElementById('connectionStatus');
+            
+            if (connected) {
+                dot.className = 'status-dot connected';
+                status.textContent = 'Conectado';
+            } else {
+                dot.className = 'status-dot disconnected';
+                status.textContent = 'Desconectado';
+            }
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-ES');
+            document.getElementById('lastUpdateTime').textContent = `Última actualización: ${timeStr}`;
+        }
+
+        function getDeviceIcon(deviceId, deviceType) {
+            if (deviceType === 'luz') {
+                return '💡';
+            } else if (deviceType === 'enchufe') {
+                if (deviceId.includes('tv')) return '📺';
+                if (deviceId.includes('calefactor')) return '🔥';
+                return '🔌';
+            }
+            return '❓';
+        }
+
+        function formatDeviceId(deviceId) {
+            return deviceId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // ==================== API CALLS ====================
+
+        async function loadDevices() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/status`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateConnectionStatus(true);
+                    renderDevices(data.devices);
+                    updateLastUpdateTime();
+                    
+                    // Mostrar paneles
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.getElementById('devicesGrid').style.display = 'grid';
+                    document.getElementById('logPanel').style.display = 'block';
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                console.error('Error cargando dispositivos:', error);
+                updateConnectionStatus(false);
+                showNotification('Error al conectar con el servidor', 'error');
+            }
+        }
+
+        async function controlDevice(deviceId, action) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/control`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: deviceId,
+                        action: action
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`${formatDeviceId(deviceId)} ${action === 'ON' ? 'encendido' : 'apagado'}`, 'success');
+                    loadDevices(); // Recargar estado
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                console.error('Error controlando dispositivo:', error);
+                showNotification(`Error al controlar ${formatDeviceId(deviceId)}`, 'error');
+            }
+        }
+
+        async function setAutoOff(deviceId, seconds) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/auto_off`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: deviceId,
+                        seconds: parseInt(seconds)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (seconds > 0) {
+                        showNotification(`Auto-apagado configurado: ${seconds}s`, 'success');
+                    } else {
+                        showNotification('Auto-apagado desactivado', 'success');
+                    }
+                    loadDevices(); // Recargar estado
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                console.error('Error configurando auto-apagado:', error);
+                showNotification('Error al configurar auto-apagado', 'error');
+            }
+        }
+
+        async function loadLog() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/log?limit=30`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderLog(data.logs);
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                console.error('Error cargando log:', error);
+                document.getElementById('logEntries').innerHTML = 
+                    '<div class="log-entry" style="color: #ef4444;">Error al cargar el historial</div>';
+            }
+        }
+
+        // ==================== RENDERIZADO ====================
+
+        function renderDevices(devices) {
+            const grid = document.getElementById('devicesGrid');
+            
+            grid.innerHTML = devices.map(device => {
+                const icon = getDeviceIcon(device.id, device.type);
+                const displayName = formatDeviceId(device.id);
+                const statusClass = device.estado === 'ON' ? 'on' : 'off';
+                const statusText = device.estado === 'ON' ? '🟢 Encendido' : '⚫ Apagado';
+                const autoOffActive = device.auto_off > 0;
+                
+                return `
+                    <div class="device-card">
+                        <div class="device-header">
+                            <div class="device-icon">${icon}</div>
+                            <div class="device-title">
+                                <h3>${displayName}</h3>
+                                <div class="device-type">${device.type}</div>
+                            </div>
+                            <div class="device-status ${statusClass}">${statusText}</div>
+                        </div>
+                        
+                        <div class="device-controls">
+                            <button class="btn btn-on" onclick="controlDevice('${device.id}', 'ON')" 
+                                ${device.estado === 'ON' ? 'disabled' : ''}>
+                                Encender
+                            </button>
+                            <button class="btn btn-off" onclick="controlDevice('${device.id}', 'OFF')"
+                                ${device.estado === 'OFF' ? 'disabled' : ''}>
+                                Apagar
+                            </button>
+                        </div>
+                        
+                        <div class="auto-off-section">
+                            <label class="auto-off-label">⏰ Auto-apagado (segundos):</label>
+                            <div class="auto-off-controls">
+                                <input type="number" id="autooff-${device.id}" 
+                                    min="0" max="3600" value="${device.auto_off}" 
+                                    placeholder="0 = desactivado">
+                                <button class="btn btn-auto" onclick="applyAutoOff('${device.id}')">
+                                    Aplicar
+                                </button>
+                            </div>
+                            <div class="auto-off-info ${autoOffActive ? 'active' : ''}" id="autoinfo-${device.id}">
+                                ⏱️ Se apagará en ${device.auto_off} segundos
+                            </div>
+                        </div>
+                        
+                        <div class="last-update">
+                            Último cambio: ${new Date(device.ultimo_cambio).toLocaleString('es-ES')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderLog(logs) {
+            const logEntries = document.getElementById('logEntries');
+            
+            if (logs.length === 0) {
+                logEntries.innerHTML = '<div class="log-entry">No hay eventos registrados</div>';
+                return;
+            }
+            
+            logEntries.innerHTML = logs.reverse().map(log => 
+                `<div class="log-entry">${log}</div>`
+            ).join('');
+            
+            // Scroll al final
+            logEntries.scrollTop = logEntries.scrollHeight;
+        }
+
+        // ==================== HANDLERS ====================
+
+        function applyAutoOff(deviceId) {
+            const input = document.getElementById(`autooff-${deviceId}`);
+            const seconds = input.value;
+            
+            if (seconds === '' || isNaN(seconds) || seconds < 0) {
+                showNotification('Valor inválido para auto-apagado', 'error');
+                return;
+            }
+            
+            setAutoOff(deviceId, seconds);
+        }
+
+        // ==================== INICIALIZACIÓN ====================
+
+        function startAutoUpdate() {
+            // Cargar inmediatamente
+            loadDevices();
+            loadLog();
+            
+            // Actualizar periódicamente
+            updateTimer = setInterval(() => {
+                loadDevices();
+            }, UPDATE_INTERVAL);
+        }
+
+        function stopAutoUpdate() {
+            if (updateTimer) {
+                clearInterval(updateTimer);
+                updateTimer = null;
+            }
+        }
+
+        // Iniciar cuando cargue la página
+        window.addEventListener('load', () => {
+            console.log('🏠 Gemelo Digital iniciado');
+            console.log(`📡 API URL: ${API_BASE_URL}`);
+            startAutoUpdate();
+        });
+
+        // Detener actualización cuando se cierre/oculte la página
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAutoUpdate();
+            } else {
+                startAutoUpdate();
+            }
+        });
+
+        // Cleanup al cerrar
+        window.addEventListener('beforeunload', () => {
+            stopAutoUpdate();
+        });
+    </script>
+</body>
+</html>
