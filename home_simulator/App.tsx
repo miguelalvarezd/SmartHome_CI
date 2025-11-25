@@ -30,6 +30,8 @@ const App: React.FC = () => {
         // Map backend state to room state
         const luces = status.devices.filter(d => d.type === 'luz');
         const enchufes = status.devices.filter(d => d.type === 'enchufe');
+        const cortinasDevice = status.devices.find(d => d.type === 'cortinas');
+        const termostatoDevice = status.devices.find(d => d.type === 'termostato');
         
         if (luces.length > 0) {
           const luz = luces[0]; // Use first light as reference (luz_salon)
@@ -39,9 +41,9 @@ const App: React.FC = () => {
             // If light is OFF, brightness should be 0 for display, otherwise use stored brightness
             brightness: isLightOn ? luz.brightness : 0,
             lightColor: luz.color,
-            blindsPosition: luz.curtains,
-            temperature: luz.temperature,
-            targetTemperature: luz.target_temperature,
+            blindsPosition: cortinasDevice?.curtains ?? prev.blindsPosition,
+            temperature: termostatoDevice?.temperature ?? prev.temperature,
+            targetTemperature: termostatoDevice?.target_temperature ?? prev.targetTemperature,
             isTvOn: enchufes.find(e => e.id.includes('tv'))?.estado === 'ON',
             isHeaterOn: enchufes.find(e => e.id.includes('calefactor'))?.estado === 'ON',
           }));

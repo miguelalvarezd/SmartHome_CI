@@ -660,7 +660,7 @@
         <!-- Simulator Tab Content -->
         <div id="simulatorTab" class="tab-content">
             <div class="simulator-container">
-                <iframe src="http://localhost:3000/" title="SmartHome 3D Simulator"></iframe>
+                <iframe src="http://192.168.1.142:3000/" title="SmartHome 3D Simulator"></iframe>
             </div>
         </div>
     </div>
@@ -671,7 +671,7 @@
 
     <script>
         // Configuración
-        const API_BASE_URL = 'http://localhost:8080/api';
+        const API_BASE_URL = 'http://192.168.1.142:8080/api';
         const UPDATE_INTERVAL = 5000; // 5 segundos
 
         let updateTimer = null;
@@ -876,9 +876,8 @@
             // Separate devices by type
             const luces = devices.filter(d => d.type === 'luz');
             const enchufes = devices.filter(d => d.type === 'enchufe');
-            
-            // Get environment data from first device (shared across all)
-            const envData = devices[0] || {};
+            const cortinasDevice = devices.find(d => d.type === 'cortinas') || {};
+            const termostatoDevice = devices.find(d => d.type === 'termostato') || {};
             
             let html = '';
             
@@ -896,18 +895,18 @@
                     <div class="param-section">
                         <div class="param-label">
                             <span>🌡️ Temperatura Actual</span>
-                            <span class="param-value">${envData.temperature || 19}°C</span>
+                            <span class="param-value">${termostatoDevice.temperature || 19}°C</span>
                         </div>
                     </div>
                     
                     <div class="param-section">
                         <div class="param-label">
                             <span>🎯 Temperatura Objetivo</span>
-                            <span class="param-value">${envData.target_temperature || 21}°C</span>
+                            <span class="param-value">${termostatoDevice.target_temperature || 21}°C</span>
                         </div>
                         <div class="temp-control">
                             <button class="temp-btn" onclick="adjustTemperature(-1)">−</button>
-                            <div class="temp-display">${envData.target_temperature || 21}°</div>
+                            <div class="temp-display">${termostatoDevice.target_temperature || 21}°</div>
                             <button class="temp-btn" onclick="adjustTemperature(1)">+</button>
                         </div>
                     </div>
@@ -915,11 +914,11 @@
                     <div class="param-section">
                         <div class="param-label">
                             <span>🪟 Cortinas</span>
-                            <span class="param-value">${envData.curtains || 0}%</span>
+                            <span class="param-value">${cortinasDevice.curtains || 0}%</span>
                         </div>
                         <div class="slider-container">
                             <input type="range" class="slider" min="0" max="100" 
-                                value="${envData.curtains || 0}" 
+                                value="${cortinasDevice.curtains || 0}" 
                                 oninput="updateCurtains(this.value)"
                                 onchange="saveCurtains(this.value)">
                         </div>
@@ -1174,7 +1173,8 @@
                 const response = await fetch(`${API_BASE_URL}/status`);
                 const data = await response.json();
                 if (data.success && data.devices.length > 0) {
-                    const currentTemp = data.devices[0].target_temperature || 21;
+                    const termostatoDevice = data.devices.find(d => d.type === 'termostato') || {};
+                    const currentTemp = termostatoDevice.target_temperature || 21;
                     const newTemp = Math.max(16, Math.min(30, currentTemp + delta));
                     
                     const setResponse = await fetch(`${API_BASE_URL}/temperature`, {
