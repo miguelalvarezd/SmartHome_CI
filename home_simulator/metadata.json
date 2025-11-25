@@ -1,0 +1,7 @@
+{
+  "name": "SmartHome 3D Simulator",
+  "description": "Una simulación 3D interactiva de una habitación domótica controlada por IA. Experimenta con luces, persianas y temperatura mediante controles manuales o comandos naturales con Gemini.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

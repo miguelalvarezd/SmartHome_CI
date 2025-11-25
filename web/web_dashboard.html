@@ -38,6 +38,84 @@
             margin-bottom: 10px;
         }
 
+        .tabs-container {
+            background: white;
+            border-radius: 15px 15px 0 0;
+            padding: 0;
+            margin-bottom: 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px 25px;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tab-button:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 0 0 15px 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-height: 500px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .simulator-container {
+            width: 100%;
+            height: calc(100vh - 300px);
+            min-height: 600px;
+            border: none;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .simulator-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
         .status-bar {
             display: flex;
             justify-content: center;
@@ -238,6 +316,138 @@
             display: block;
         }
 
+        .param-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .param-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .param-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .slider-container {
+            margin-bottom: 15px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: #5568d3;
+            transform: scale(1.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .slider::-moz-range-thumb:hover {
+            background: #5568d3;
+            transform: scale(1.2);
+        }
+
+        .color-picker-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .color-picker {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .color-picker:hover {
+            transform: scale(1.1);
+            border-color: #667eea;
+        }
+
+        .temp-control {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .temp-display {
+            flex: 1;
+            text-align: center;
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .temp-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .temp-btn:hover {
+            background: #5568d3;
+            transform: scale(1.1);
+        }
+
+        .env-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .env-card .device-title h3,
+        .env-card .param-label,
+        .env-card .param-value {
+            color: white;
+        }
+
         .log-panel {
             background: white;
             border-radius: 15px;
@@ -365,6 +575,16 @@
             .grid {
                 grid-template-columns: 1fr;
             }
+
+            .tab-button {
+                font-size: 0.9em;
+                padding: 12px 15px;
+            }
+
+            .simulator-container {
+                height: calc(100vh - 250px);
+                min-height: 400px;
+            }
         }
     </style>
 </head>
@@ -386,22 +606,44 @@
             </div>
         </header>
 
-        <div id="loadingIndicator" class="loading">
-            <div class="spinner"></div>
-            <p>Cargando dispositivos...</p>
-        </div>
-
-        <div id="devicesGrid" class="grid" style="display: none;">
-            <!-- Los dispositivos se cargarán dinámicamente aquí -->
-        </div>
-
-        <div id="logPanel" class="log-panel" style="display: none;">
-            <div class="log-header">
-                <h2>📜 Historial de Eventos</h2>
-                <button class="btn-refresh" onclick="loadLog()">🔄 Actualizar</button>
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('dashboard')">
+                    📊 Panel de Control
+                </button>
+                <button class="tab-button" onclick="switchTab('simulator')">
+                    🎮 Simulador 3D
+                </button>
             </div>
-            <div class="log-entries" id="logEntries">
-                <div class="log-entry">Cargando eventos...</div>
+        </div>
+
+        <!-- Dashboard Tab Content -->
+        <div id="dashboardTab" class="tab-content active">
+            <div id="loadingIndicator" class="loading">
+                <div class="spinner"></div>
+                <p>Cargando dispositivos...</p>
+            </div>
+
+            <div id="devicesGrid" class="grid" style="display: none;">
+                <!-- Los dispositivos se cargarán dinámicamente aquí -->
+            </div>
+
+            <div id="logPanel" class="log-panel" style="display: none; margin-top: 30px;">
+                <div class="log-header">
+                    <h2>📜 Historial de Eventos</h2>
+                    <button class="btn-refresh" onclick="loadLog()">🔄 Actualizar</button>
+                </div>
+                <div class="log-entries" id="logEntries">
+                    <div class="log-entry">Cargando eventos...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulator Tab Content -->
+        <div id="simulatorTab" class="tab-content">
+            <div class="simulator-container">
+                <iframe src="http://localhost:3000/" title="SmartHome 3D Simulator"></iframe>
             </div>
         </div>
     </div>
@@ -417,6 +659,38 @@
 
         let updateTimer = null;
         let isConnected = false;
+        let currentTab = 'dashboard';
+
+        // ==================== TAB MANAGEMENT ====================
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            if (tabName === 'dashboard') {
+                document.getElementById('dashboardTab').classList.add('active');
+                currentTab = 'dashboard';
+                // Resume updates when switching back to dashboard
+                if (!updateTimer) {
+                    startAutoUpdate();
+                }
+            } else if (tabName === 'simulator') {
+                document.getElementById('simulatorTab').classList.add('active');
+                currentTab = 'simulator';
+                // Optionally pause updates when viewing simulator
+                // stopAutoUpdate();
+            }
+        }
 
         // ==================== UTILIDADES ====================
 
@@ -582,14 +856,148 @@
         function renderDevices(devices) {
             const grid = document.getElementById('devicesGrid');
             
-            grid.innerHTML = devices.map(device => {
+            // Separate devices by type
+            const luces = devices.filter(d => d.type === 'luz');
+            const enchufes = devices.filter(d => d.type === 'enchufe');
+            
+            // Get environment data from first device (shared across all)
+            const envData = devices[0] || {};
+            
+            let html = '';
+            
+            // Environmental Controls Card
+            html += `
+                <div class="device-card env-card">
+                    <div class="device-header">
+                        <div class="device-icon">🌡️</div>
+                        <div class="device-title">
+                            <h3>Control Ambiental</h3>
+                            <div class="device-type">TEMPERATURA Y CORTINAS</div>
+                        </div>
+                    </div>
+                    
+                    <div class="param-section">
+                        <div class="param-label">
+                            <span>🌡️ Temperatura Actual</span>
+                            <span class="param-value">${envData.temperature || 19}°C</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-section">
+                        <div class="param-label">
+                            <span>🎯 Temperatura Objetivo</span>
+                            <span class="param-value">${envData.target_temperature || 21}°C</span>
+                        </div>
+                        <div class="temp-control">
+                            <button class="temp-btn" onclick="adjustTemperature(-1)">−</button>
+                            <div class="temp-display">${envData.target_temperature || 21}°</div>
+                            <button class="temp-btn" onclick="adjustTemperature(1)">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="param-section">
+                        <div class="param-label">
+                            <span>🪟 Cortinas</span>
+                            <span class="param-value">${envData.curtains || 0}%</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" class="slider" min="0" max="100" 
+                                value="${envData.curtains || 0}" 
+                                oninput="updateCurtains(this.value)"
+                                onchange="saveCurtains(this.value)">
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Light devices with brightness and color
+            luces.forEach(device => {
+                const icon = '💡';
+                const displayName = formatDeviceId(device.id);
+                const statusClass = device.estado === 'ON' ? 'on' : 'off';
+                const statusText = device.estado === 'ON' ? '🟢 Encendido' : '⚫ Apagado';
+                const autoOffActive = device.auto_off > 0;
+                // If light is OFF, display brightness as 0, otherwise use actual brightness
+                const displayBrightness = device.estado === 'OFF' ? 0 : (device.brightness || 40);
+                
+                html += `
+                    <div class="device-card">
+                        <div class="device-header">
+                            <div class="device-icon">${icon}</div>
+                            <div class="device-title">
+                                <h3>${displayName}</h3>
+                                <div class="device-type">${device.type}</div>
+                            </div>
+                            <div class="device-status ${statusClass}">${statusText}</div>
+                        </div>
+                        
+                        <div class="device-controls">
+                            <button class="btn btn-on" onclick="controlDevice('${device.id}', 'ON')" 
+                                ${device.estado === 'ON' ? 'disabled' : ''}>
+                                Encender
+                            </button>
+                            <button class="btn btn-off" onclick="controlDevice('${device.id}', 'OFF')"
+                                ${device.estado === 'OFF' ? 'disabled' : ''}>
+                                Apagar
+                            </button>
+                        </div>
+                        
+                        <div class="param-section">
+                            <div class="param-label">
+                                <span>💡 Brillo</span>
+                                <span class="param-value">${displayBrightness}%</span>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" class="slider" min="0" max="100" 
+                                    value="${displayBrightness}" 
+                                    oninput="updateBrightness('${device.id}', this.value)"
+                                    onchange="saveBrightness('${device.id}', this.value)">
+                            </div>
+                        </div>
+                        
+                        <div class="param-section">
+                            <div class="param-label">
+                                <span>🎨 Color</span>
+                                <span class="param-value">${device.color || '#ffffff'}</span>
+                            </div>
+                            <div class="color-picker-container">
+                                <input type="color" class="color-picker" 
+                                    value="${device.color || '#ffffff'}"
+                                    onchange="saveColor('${device.id}', this.value)">
+                            </div>
+                        </div>
+                        
+                        <div class="auto-off-section">
+                            <label class="auto-off-label">⏰ Auto-apagado (segundos):</label>
+                            <div class="auto-off-controls">
+                                <input type="number" id="autooff-${device.id}" 
+                                    min="0" max="3600" value="${device.auto_off}" 
+                                    placeholder="0 = desactivado">
+                                <button class="btn btn-auto" onclick="applyAutoOff('${device.id}')">
+                                    Aplicar
+                                </button>
+                            </div>
+                            <div class="auto-off-info ${autoOffActive ? 'active' : ''}" id="autoinfo-${device.id}">
+                                ⏱️ Se apagará en ${device.auto_off} segundos
+                            </div>
+                        </div>
+                        
+                        <div class="last-update">
+                            Último cambio: ${new Date(device.ultimo_cambio).toLocaleString('es-ES')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Power outlet devices (TV, heater, etc.)
+            enchufes.forEach(device => {
                 const icon = getDeviceIcon(device.id, device.type);
                 const displayName = formatDeviceId(device.id);
                 const statusClass = device.estado === 'ON' ? 'on' : 'off';
                 const statusText = device.estado === 'ON' ? '🟢 Encendido' : '⚫ Apagado';
                 const autoOffActive = device.auto_off > 0;
                 
-                return `
+                html += `
                     <div class="device-card">
                         <div class="device-header">
                             <div class="device-icon">${icon}</div>
@@ -631,7 +1039,9 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+            });
+            
+            grid.innerHTML = html;
         }
 
         function renderLog(logs) {
@@ -662,6 +1072,111 @@
             }
             
             setAutoOff(deviceId, seconds);
+        }
+
+        // Brightness handlers
+        function updateBrightness(deviceId, value) {
+            const label = document.querySelector(`input[oninput*="updateBrightness('${deviceId}'"]`)
+                .closest('.param-section').querySelector('.param-value');
+            if (label) label.textContent = `${value}%`;
+        }
+
+        async function saveBrightness(deviceId, value) {
+            try {
+                const brightness = parseInt(value);
+                const response = await fetch(`${API_BASE_URL}/brightness`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: deviceId, brightness: brightness })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    // Turn light ON if brightness > 0, OFF if brightness = 0
+                    const action = brightness > 0 ? 'ON' : 'OFF';
+                    await controlDevice(deviceId, action);
+                    showNotification(`Brillo ajustado a ${value}%`, 'success');
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+            } catch (error) {
+                console.error('Error ajustando brillo:', error);
+                showNotification('Error al ajustar el brillo', 'error');
+            }
+        }
+
+        // Color handlers
+        async function saveColor(deviceId, color) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/color`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: deviceId, color: color })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`Color cambiado a ${color}`, 'success');
+                    loadDevices(); // Refresh to update display
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+            } catch (error) {
+                console.error('Error cambiando color:', error);
+                showNotification('Error al cambiar el color', 'error');
+            }
+        }
+
+        // Curtains handlers
+        function updateCurtains(value) {
+            const label = document.querySelector(`input[oninput*="updateCurtains"]`)
+                .closest('.param-section').querySelector('.param-value');
+            if (label) label.textContent = `${value}%`;
+        }
+
+        async function saveCurtains(value) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/curtains`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ position: parseInt(value) })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`Cortinas ajustadas a ${value}%`, 'success');
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+            } catch (error) {
+                console.error('Error ajustando cortinas:', error);
+                showNotification('Error al ajustar las cortinas', 'error');
+            }
+        }
+
+        // Temperature handlers
+        async function adjustTemperature(delta) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/status`);
+                const data = await response.json();
+                if (data.success && data.devices.length > 0) {
+                    const currentTemp = data.devices[0].target_temperature || 21;
+                    const newTemp = Math.max(16, Math.min(30, currentTemp + delta));
+                    
+                    const setResponse = await fetch(`${API_BASE_URL}/temperature`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ temperature: newTemp })
+                    });
+                    const setData = await setResponse.json();
+                    if (setData.success) {
+                        showNotification(`Temperatura objetivo: ${newTemp}°C`, 'success');
+                        loadDevices(); // Refresh to update display
+                    } else {
+                        throw new Error(setData.error || 'Error desconocido');
+                    }
+                }
+            } catch (error) {
+                console.error('Error ajustando temperatura:', error);
+                showNotification('Error al ajustar la temperatura', 'error');
+            }
         }
 
         // ==================== INICIALIZACIÓN ====================

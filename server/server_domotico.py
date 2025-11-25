@@ -48,6 +48,13 @@ class Device:
         self.ultimo_cambio = datetime.now().isoformat()
         self.auto_off_timer = None  # Temporizador activo
 
+        # Nuevos parámetros para el simulador 3D
+        self.brightness = 40  # Intensidad de luz (0-100)
+        self.color = "#ffffff"  # Color de luz (hex)
+        self.curtains = 0  # Posición de cortinas (0-100)
+        self.temperature = 19  # Temperatura actual
+        self.target_temperature = 21  # Temperatura objetivo
+
     def to_dict(self) -> dict:
         """Serializa el dispositivo a diccionario"""
         return {
@@ -56,11 +63,16 @@ class Device:
             "estado": self.estado,
             "auto_off": self.auto_off,
             "ultimo_cambio": self.ultimo_cambio,
+            "brightness": self.brightness,
+            "color": self.color,
+            "curtains": self.curtains,
+            "temperature": self.temperature,
+            "target_temperature": self.target_temperature,
         }
 
     def to_protocol_string(self) -> str:
-        """Formato para protocolo de texto: id,estado,auto_off"""
-        return f"{self.id},{self.estado},{self.auto_off}"
+        """Formato para protocolo de texto: id,estado,auto_off,brightness,color,curtains,temp,target_temp"""
+        return f"{self.id},{self.estado},{self.auto_off},{self.brightness},{self.color},{self.curtains},{self.temperature},{self.target_temperature}"
 
 
 # ==================== GESTOR DE DISPOSITIVOS ====================
@@ -81,7 +93,6 @@ class DeviceManager:
         """Inicializa los dispositivos predefinidos"""
         dispositivos_iniciales = [
             ("luz_salon", "luz"),
-            ("luz_dormitorio", "luz"),
             ("enchufe_tv", "enchufe"),
             ("enchufe_calefactor", "enchufe"),
         ]
@@ -177,6 +188,47 @@ class DeviceManager:
                 device.auto_off_timer = None
                 self._add_log(device_id, "Auto-apagado ejecutado")
 
+    def set_brightness(self, device_id: str, brightness: int) -> bool:
+        """Establece el brillo de una luz (0-100)"""
+        with self.lock:
+            device = self.devices.get(device_id)
+            if not device or device.type != "luz":
+                return False
+            device.brightness = max(0, min(100, brightness))
+            device.ultimo_cambio = datetime.now().isoformat()
+            self._add_log(device_id, f"Brillo cambiado a {device.brightness}%")
+            return True
+
+    def set_color(self, device_id: str, color: str) -> bool:
+        """Establece el color de una luz (formato hex #RRGGBB)"""
+        with self.lock:
+            device = self.devices.get(device_id)
+            if not device or device.type != "luz":
+                return False
+            device.color = color
+            device.ultimo_cambio = datetime.now().isoformat()
+            self._add_log(device_id, f"Color cambiado a {color}")
+            return True
+
+    def set_curtains(self, curtains: int) -> bool:
+        """Establece la posición de las cortinas (0-100)"""
+        with self.lock:
+            curtains = max(0, min(100, curtains))
+            # Actualizar en todos los dispositivos para sincronizar
+            for device in self.devices.values():
+                device.curtains = curtains
+            self._add_log("CURTAINS", f"Cortinas ajustadas a {curtains}%")
+            return True
+
+    def set_temperature(self, target_temp: float) -> bool:
+        """Establece la temperatura objetivo"""
+        with self.lock:
+            target_temp = max(16, min(30, target_temp))
+            for device in self.devices.values():
+                device.target_temperature = target_temp
+            self._add_log("CLIMATE", f"Temperatura objetivo: {target_temp}°C")
+            return True
+
     def get_log(self, limit: int = 20) -> List[str]:
         """Obtiene el historial de eventos"""
         with self.lock:
@@ -248,9 +300,12 @@ class TCPServer:
 
         try:
             # Enviar mensaje de bienvenida
-            client_socket.send(
-                b"SERVIDOR DOMOTICO v1.0\nComandos: LOGIN, LIST, STATUS, SET, AUTO_OFF, LOG, EXIT\n"
+            welcome_msg = (
+                b"SERVIDOR DOMOTICO v2.0\n"
+                b"Comandos: LOGIN, LIST, STATUS, SET, AUTO_OFF, "
+                b"BRIGHTNESS, COLOR, CURTAINS, TEMP, LOG, EXIT\n"
             )
+            client_socket.send(welcome_msg)
 
             while True:
                 # Recibir comando
@@ -354,6 +409,61 @@ class TCPServer:
                 return f"ERROR Dispositivo '{device_id}' no encontrado"
             except ValueError:
                 return "ERROR AUTO_OFF: Los segundos deben ser un número entero"
+
+        # BRIGHTNESS <id> <0-100>
+        if cmd == "BRIGHTNESS":
+            if len(parts) != 3:
+                return "ERROR BRIGHTNESS: Uso: BRIGHTNESS <device_id> <0-100>"
+            device_id = parts[1]
+            try:
+                brightness = int(parts[2])
+                if brightness < 0 or brightness > 100:
+                    return "ERROR BRIGHTNESS: El valor debe estar entre 0 y 100"
+                if self.device_manager.set_brightness(device_id, brightness):
+                    return f"OK BRIGHTNESS {device_id} {brightness}"
+                return f"ERROR Dispositivo '{device_id}' no encontrado o no es una luz"
+            except ValueError:
+                return "ERROR BRIGHTNESS: El valor debe ser un número entero"
+
+        # COLOR <id> <#RRGGBB>
+        if cmd == "COLOR":
+            if len(parts) != 3:
+                return "ERROR COLOR: Uso: COLOR <device_id> <#RRGGBB>"
+            device_id = parts[1]
+            color = parts[2]
+            if not color.startswith("#") or len(color) != 7:
+                return "ERROR COLOR: El color debe estar en formato #RRGGBB"
+            if self.device_manager.set_color(device_id, color):
+                return f"OK COLOR {device_id} {color}"
+            return f"ERROR Dispositivo '{device_id}' no encontrado o no es una luz"
+
+        # CURTAINS <0-100>
+        if cmd == "CURTAINS":
+            if len(parts) != 2:
+                return "ERROR CURTAINS: Uso: CURTAINS <0-100>"
+            try:
+                curtains = int(parts[1])
+                if curtains < 0 or curtains > 100:
+                    return "ERROR CURTAINS: El valor debe estar entre 0 y 100"
+                if self.device_manager.set_curtains(curtains):
+                    return f"OK CURTAINS {curtains}"
+                return "ERROR No se pudo ajustar las cortinas"
+            except ValueError:
+                return "ERROR CURTAINS: El valor debe ser un número entero"
+
+        # TEMP <temperatura>
+        if cmd == "TEMP":
+            if len(parts) != 2:
+                return "ERROR TEMP: Uso: TEMP <16-30>"
+            try:
+                temp = float(parts[1])
+                if temp < 16 or temp > 30:
+                    return "ERROR TEMP: La temperatura debe estar entre 16 y 30°C"
+                if self.device_manager.set_temperature(temp):
+                    return f"OK TEMP {temp}"
+                return "ERROR No se pudo ajustar la temperatura"
+            except ValueError:
+                return "ERROR TEMP: La temperatura debe ser un número"
 
         return f"ERROR Comando '{cmd}' no reconocido"
 
@@ -509,18 +619,129 @@ def create_api(device_manager: DeviceManager) -> Flask:
         logs = device_manager.get_log(limit)
         return jsonify({"success": True, "logs": logs, "count": len(logs)})
 
+    @app.route("/api/brightness", methods=["POST"])
+    def set_brightness():
+        """POST /api/brightness - Ajustar brillo de luz
+        Body JSON: {"id": "luz_salon", "brightness": 75}
+        """
+        data = request.get_json()
+        if not data or "id" not in data or "brightness" not in data:
+            return jsonify({"success": False, "error": "Formato inválido"}), 400
+
+        device_id = data["id"]
+        try:
+            brightness = int(data["brightness"])
+            if brightness < 0 or brightness > 100:
+                return jsonify(
+                    {"success": False, "error": "Brillo debe estar entre 0 y 100"}
+                ), 400
+
+            if device_manager.set_brightness(device_id, brightness):
+                return jsonify(
+                    {"success": True, "device_id": device_id, "brightness": brightness}
+                )
+            return jsonify(
+                {"success": False, "error": "Dispositivo no encontrado o no es una luz"}
+            ), 404
+        except ValueError:
+            return jsonify(
+                {"success": False, "error": "Brillo debe ser un número"}
+            ), 400
+
+    @app.route("/api/color", methods=["POST"])
+    def set_color():
+        """POST /api/color - Ajustar color de luz
+        Body JSON: {"id": "luz_salon", "color": "#ff0000"}
+        """
+        data = request.get_json()
+        if not data or "id" not in data or "color" not in data:
+            return jsonify({"success": False, "error": "Formato inválido"}), 400
+
+        device_id = data["id"]
+        color = data["color"]
+
+        if not color.startswith("#") or len(color) != 7:
+            return jsonify(
+                {"success": False, "error": "Color debe estar en formato #RRGGBB"}
+            ), 400
+
+        if device_manager.set_color(device_id, color):
+            return jsonify({"success": True, "device_id": device_id, "color": color})
+        return jsonify(
+            {"success": False, "error": "Dispositivo no encontrado o no es una luz"}
+        ), 404
+
+    @app.route("/api/curtains", methods=["POST"])
+    def set_curtains():
+        """POST /api/curtains - Ajustar posición de cortinas
+        Body JSON: {"position": 50}
+        """
+        data = request.get_json()
+        if not data or "position" not in data:
+            return jsonify({"success": False, "error": "Formato inválido"}), 400
+
+        try:
+            position = int(data["position"])
+            if position < 0 or position > 100:
+                return jsonify(
+                    {"success": False, "error": "Posición debe estar entre 0 y 100"}
+                ), 400
+
+            if device_manager.set_curtains(position):
+                return jsonify({"success": True, "position": position})
+            return jsonify(
+                {"success": False, "error": "No se pudo ajustar las cortinas"}
+            ), 500
+        except ValueError:
+            return jsonify(
+                {"success": False, "error": "Posición debe ser un número"}
+            ), 400
+
+    @app.route("/api/temperature", methods=["POST"])
+    def set_temperature():
+        """POST /api/temperature - Ajustar temperatura objetivo
+        Body JSON: {"temperature": 22}
+        """
+        data = request.get_json()
+        if not data or "temperature" not in data:
+            return jsonify({"success": False, "error": "Formato inválido"}), 400
+
+        try:
+            temp = float(data["temperature"])
+            if temp < 16 or temp > 30:
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": "Temperatura debe estar entre 16 y 30°C",
+                    }
+                ), 400
+
+            if device_manager.set_temperature(temp):
+                return jsonify({"success": True, "temperature": temp})
+            return jsonify(
+                {"success": False, "error": "No se pudo ajustar la temperatura"}
+            ), 500
+        except ValueError:
+            return jsonify(
+                {"success": False, "error": "Temperatura debe ser un número"}
+            ), 400
+
     @app.route("/", methods=["GET"])
     def index():
         """Página de información de la API"""
         return jsonify(
             {
                 "name": "Sistema Domótico - API REST",
-                "version": "1.0",
+                "version": "2.0",
                 "endpoints": {
                     "GET /api/status": "Estado de todos los dispositivos",
                     "GET /api/device/<id>": "Estado de un dispositivo",
                     "POST /api/control": "Controlar dispositivo (ON/OFF)",
                     "POST /api/auto_off": "Configurar autoapagado",
+                    "POST /api/brightness": "Ajustar brillo de luz",
+                    "POST /api/color": "Ajustar color de luz",
+                    "POST /api/curtains": "Ajustar posición de cortinas",
+                    "POST /api/temperature": "Ajustar temperatura objetivo",
                     "GET /api/log": "Historial de eventos",
                 },
             }

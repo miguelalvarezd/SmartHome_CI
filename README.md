@@ -5,7 +5,9 @@ Sistema completo de domótica basado en arquitectura Cliente-Servidor con capaci
 ## 📋 Características Principales
 
 - **Arquitectura Cliente-Servidor** con triple protocolo (TCP + UDP + REST)
-- **Control de 4 dispositivos** virtuales (2 luces + 2 enchufes)
+- **Control de 3 dispositivos** virtuales (1 luz + 2 enchufes)
+- **Simulador 3D** interactivo con React y Three.js
+- **Parámetros avanzados**: brillo, color de luz, cortinas, temperatura
 - **Autoapagado programable** con threading.Timer
 - **Gemelo Digital Web** con interfaz moderna y actualización automática
 - **Telemetría en tiempo real** vía UDP broadcast
@@ -148,13 +150,16 @@ Interfaz web moderna:
 < OK LOGIN Bienvenido admin
 
 > LIST
-< OK 4 luz_salon,OFF,0;luz_dormitorio,OFF,0;enchufe_tv,OFF,0;enchufe_calefactor,OFF,0
+< OK 3 luz_salon,OFF,0,40,#ffffff,0,19,21;enchufe_tv,OFF,0,40,#ffffff,0,19,21;enchufe_calefactor,OFF,0,40,#ffffff,0,19,21
 
 > SET luz_salon ON
 < OK SET luz_salon ON
 
-> AUTO_OFF luz_salon 30
-< OK AUTO_OFF luz_salon 30s
+> BRIGHTNESS luz_salon 75
+< OK BRIGHTNESS luz_salon 75
+
+> TEMP 22
+< OK TEMP 22.0
 ```
 
 ### UDP - Telemetría (Puerto 5001)
@@ -209,12 +214,15 @@ Broadcast automático cada 2 segundos en formato JSON:
 
 ## 🎯 Dispositivos Disponibles
 
-| ID | Tipo | Icono | Descripción |
-|----|------|-------|-------------|
-| `luz_salon` | luz | 💡 | Luz principal del salón |
-| `luz_dormitorio` | luz | 💡 | Luz del dormitorio |
-| `enchufe_tv` | enchufe | 📺 | Smart plug para TV |
-| `enchufe_calefactor` | enchufe | 🔥 | Smart plug para calefacción |
+| ID | Tipo | Icono | Descripción | Parámetros Especiales |
+|----|------|-------|-------------|-----------------------|
+| `luz_salon` | luz | 💡 | Luz principal del salón | Brillo (0-100%), Color (#RRGGBB) |
+| `enchufe_tv` | enchufe | 📺 | Smart plug para TV | - |
+| `enchufe_calefactor` | enchufe | 🔥 | Smart plug para calefacción | - |
+
+**Parámetros Globales (todos los dispositivos):**
+- 🪟 **Cortinas**: Posición 0-100%
+- 🌡️ **Temperatura**: Actual y objetivo (16-30°C)
 
 ---
 
@@ -240,7 +248,7 @@ python client\client_console.py
 
 ### Ejemplo 2: Autoapagado desde Web
 1. Abrir `web\web_dashboard.html`
-2. Click en "Encender" de `luz_dormitorio`
+2. Click en "Encender" de `luz_salon`
 3. En "Auto-apagado", escribir `30`
 4. Click en "Aplicar"
 5. Esperar 30 segundos → se apaga automáticamente

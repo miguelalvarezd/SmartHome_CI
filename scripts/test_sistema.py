@@ -153,7 +153,7 @@ class TestRunner:
         test_socket.recv(4096)  # Leer bienvenida
 
         # Intentar SET sin login
-        test_socket.send(b"SET luz_dormitorio ON\n")
+        test_socket.send(b"SET luz_salon ON\n")
         response = test_socket.recv(4096).decode("utf-8").strip()
 
         self.print_test(
@@ -220,7 +220,7 @@ class TestRunner:
             # Test POST /api/auto_off
             response = requests.post(
                 f"{API_BASE}/auto_off",
-                json={"id": "luz_dormitorio", "seconds": 10},
+                json={"id": "luz_salon", "seconds": 10},
                 timeout=5,
             )
             data = response.json()
