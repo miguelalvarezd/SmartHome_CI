@@ -109,9 +109,9 @@ class DomoticClient:
             print("❌ Autenticación fallida")
 
     def list_devices(self):
-        """Lista todos los dispositivos"""
-        print("\n📋 LISTADO DE DISPOSITIVOS")
-        print("-" * 60)
+        """Lista todos los dispositivos con todos sus parámetros"""
+        print("\n📋 LISTADO COMPLETO DE DISPOSITIVOS")
+        print("=" * 100)
 
         response = self.send_command("LIST")
 
@@ -122,29 +122,59 @@ class DomoticClient:
                 devices_str = parts[2]
 
                 print(f"Total de dispositivos: {count}\n")
-                print(f"{'ID':<20} {'Estado':<10} {'Auto-Off':<15}")
-                print("=" * 60)
 
                 for device_data in devices_str.split(";"):
                     device_info = device_data.split(",")
-                    if len(device_info) >= 3:
-                        dev_id, estado, auto_off = (
-                            device_info[0],
-                            device_info[1],
-                            device_info[2],
-                        )
+                    if len(device_info) >= 8:
+                        (
+                            dev_id,
+                            estado,
+                            auto_off,
+                            brightness,
+                            color,
+                            curtains,
+                            temp,
+                            target_temp,
+                        ) = device_info[:8]
 
-                        # Emoji según el estado
-                        emoji = "🟢" if estado == "ON" else "⚫"
-                        auto_info = f"{auto_off}s" if auto_off != "0" else "Desactivado"
+                        # Emoji según el tipo y estado
+                        if "luz" in dev_id:
+                            emoji = "💡"
+                        elif "tv" in dev_id:
+                            emoji = "📺"
+                        elif "calefactor" in dev_id:
+                            emoji = "🔥"
+                        elif "cortinas" in dev_id:
+                            emoji = "🪟"
+                        elif "termostato" in dev_id:
+                            emoji = "🌡️"
+                        else:
+                            emoji = "🔌"
 
-                        print(f"{emoji} {dev_id:<18} {estado:<10} {auto_info:<15}")
+                        estado_emoji = "🟢" if estado == "ON" else "⚫"
+                        auto_info = f"{auto_off}s" if auto_off != "0" else "--"
+
+                        print(f"{emoji} {estado_emoji} {dev_id:<20}")
+                        if "cortinas" not in dev_id and "termostato" not in dev_id:
+                            print(
+                                f"   └─ Estado: {estado:<5} | Auto-Off: {auto_info:<8}"
+                            )
+
+                        if "luz" in dev_id:
+                            print(f"   └─ Brillo: {brightness}% | Color: {color}")
+                        elif "cortinas" in dev_id:
+                            print(f"   └─ Posición: {curtains}% abierto")
+                        elif "termostato" in dev_id:
+                            print(
+                                f"   └─ Temperatura: {temp}°C → Objetivo: {target_temp}°C"
+                            )
+
+                        print()
             else:
                 print("Formato de respuesta inesperado")
         else:
             print(f"❌ Error: {response}")
-
-        print()
+        print("=" * 100)
 
     def get_status(self):
         """Obtiene el estado de un dispositivo específico"""
@@ -174,29 +204,179 @@ class DomoticClient:
         print()
 
     def set_device(self):
-        """Cambia el estado de un dispositivo (requiere autenticación)"""
+        """Modo guiado completo para cambiar parámetros de dispositivos (requiere autenticación)"""
         if not self.authenticated:
             print("\n❌ Esta función requiere autenticación.")
             print("   Por favor, use la opción 1 (Login) primero.\n")
             return
 
-        print("\n💡 CAMBIAR ESTADO DE DISPOSITIVO")
-        print("-" * 60)
+        print("\n⚙️  MODO GUIADO - CONTROL DE DISPOSITIVOS Y PARÁMETROS")
+        print("=" * 80)
+        print("\n¿Qué deseas controlar?\n")
+        print("  1. 💡 Luz del salón (ON/OFF)")
+        print("  2. 🔆 Brillo de la luz (0-100%)")
+        print("  3. 🎨 Color de la luz (#RRGGBB)")
+        print("  4. 📺 TV (ON/OFF)")
+        print("  5. 🔥 Calefactor (ON/OFF)")
+        print("  6. 🪟 Cortinas - Posición (0-100%)")
+        print("  7. 🌡️  Termostato - Temperatura objetivo (16-30°C)")
+        print("  0. ↩️  Cancelar")
+        print()
 
-        device_id = input("ID del dispositivo: ").strip()
-        estado = input("Nuevo estado (ON/OFF): ").strip().upper()
+        opcion = input("Selecciona una opción: ").strip()
 
-        if not device_id or estado not in ["ON", "OFF"]:
-            print("❌ Entrada inválida")
+        if opcion == "1":
+            # Luz ON/OFF
+            print("\n💡 CONTROL DE LUZ DEL SALÓN")
+            print("-" * 60)
+            estado = input("Estado (ON/OFF): ").strip().upper()
+            if estado in ["ON", "OFF"]:
+                response = self.send_command(f"SET luz_salon {estado}")
+                if response.startswith("OK"):
+                    emoji = "🟢" if estado == "ON" else "⚫"
+                    print(f"\n✅ {emoji} Luz del salón: {estado}")
+                else:
+                    print(f"\n❌ {response}")
+            else:
+                print("❌ Estado inválido (debe ser ON u OFF)")
+
+        elif opcion == "2":
+            # Brillo
+            print("\n🔆 AJUSTAR BRILLO DE LA LUZ")
+            print("-" * 60)
+            print("Nivel de brillo actual: (ver con opción 2 del menú)")
+            brillo = input("Nuevo brillo (0-100): ").strip()
+            try:
+                brillo_val = int(brillo)
+                if 0 <= brillo_val <= 100:
+                    response = self.send_command(
+                        f"SET luz_salon BRIGHTNESS {brillo_val}"
+                    )
+                    if response.startswith("OK"):
+                        bar = "█" * (brillo_val // 5) + "░" * (20 - brillo_val // 5)
+                        print(f"\n✅ Brillo ajustado: {brillo_val}%")
+                        print(f"   [{bar}]")
+                    else:
+                        print(f"\n❌ {response}")
+                else:
+                    print("❌ El brillo debe estar entre 0 y 100")
+            except ValueError:
+                print("❌ Valor inválido")
+
+        elif opcion == "3":
+            # Color
+            print("\n🎨 CAMBIAR COLOR DE LA LUZ")
+            print("-" * 60)
+            print("Colores predefinidos:")
+            print("  1. Blanco (#ffffff)")
+            print("  2. Cálido (#ffd699)")
+            print("  3. Azul (#0066ff)")
+            print("  4. Rojo (#ff0000)")
+            print("  5. Verde (#00ff00)")
+            print("  6. Personalizado")
+
+            color_opcion = input("\nSelecciona: ").strip()
+            colores = {
+                "1": "#ffffff",
+                "2": "#ffd699",
+                "3": "#0066ff",
+                "4": "#ff0000",
+                "5": "#00ff00",
+            }
+
+            if color_opcion in colores:
+                color = colores[color_opcion]
+            elif color_opcion == "6":
+                color = input("Ingresa color en formato #RRGGBB: ").strip()
+            else:
+                print("❌ Opción inválida")
+                return
+
+            if color.startswith("#") and len(color) == 7:
+                response = self.send_command(f"SET luz_salon COLOR {color}")
+                if response.startswith("OK"):
+                    print(f"\n✅ Color cambiado a: {color}")
+                else:
+                    print(f"\n❌ {response}")
+            else:
+                print("❌ Formato de color inválido (debe ser #RRGGBB)")
+
+        elif opcion == "4":
+            # TV
+            print("\n📺 CONTROL DE TV")
+            print("-" * 60)
+            estado = input("Estado (ON/OFF): ").strip().upper()
+            if estado in ["ON", "OFF"]:
+                response = self.send_command(f"SET enchufe_tv {estado}")
+                if response.startswith("OK"):
+                    emoji = "🟢" if estado == "ON" else "⚫"
+                    print(f"\n✅ {emoji} TV: {estado}")
+                else:
+                    print(f"\n❌ {response}")
+            else:
+                print("❌ Estado inválido")
+
+        elif opcion == "5":
+            # Calefactor
+            print("\n🔥 CONTROL DE CALEFACTOR")
+            print("-" * 60)
+            estado = input("Estado (ON/OFF): ").strip().upper()
+            if estado in ["ON", "OFF"]:
+                response = self.send_command(f"SET enchufe_calefactor {estado}")
+                if response.startswith("OK"):
+                    emoji = "🟢" if estado == "ON" else "⚫"
+                    print(f"\n✅ {emoji} Calefactor: {estado}")
+                else:
+                    print(f"\n❌ {response}")
+            else:
+                print("❌ Estado inválido")
+
+        elif opcion == "6":
+            # Cortinas
+            print("\n🪟 AJUSTAR CORTINAS")
+            print("-" * 60)
+            print("  0% = Completamente cerradas")
+            print("100% = Completamente abiertas")
+            posicion = input("\nPosición (0-100): ").strip()
+            try:
+                pos_val = int(posicion)
+                if 0 <= pos_val <= 100:
+                    response = self.send_command(f"SET cortinas LEVEL {pos_val}")
+                    if response.startswith("OK"):
+                        bar = "█" * (pos_val // 5) + "░" * (20 - pos_val // 5)
+                        print(f"\n✅ Cortinas ajustadas: {pos_val}%")
+                        print(f"   [{bar}]")
+                    else:
+                        print(f"\n❌ {response}")
+                else:
+                    print("❌ La posición debe estar entre 0 y 100")
+            except ValueError:
+                print("❌ Valor inválido")
+
+        elif opcion == "7":
+            # Temperatura
+            print("\n🌡️  AJUSTAR TEMPERATURA OBJETIVO DEL TERMOSTATO")
+            print("-" * 60)
+            print("Rango permitido: 16°C - 30°C")
+            temp = input("\nTemperatura deseada: ").strip()
+            try:
+                temp_val = float(temp)
+                if 16 <= temp_val <= 30:
+                    response = self.send_command(f"SET termostato TEMP {temp_val}")
+                    if response.startswith("OK"):
+                        print(f"\n✅ Temperatura objetivo del termostato: {temp_val}°C")
+                    else:
+                        print(f"\n❌ {response}")
+                else:
+                    print("❌ La temperatura debe estar entre 16 y 30°C")
+            except ValueError:
+                print("❌ Valor inválido")
+
+        elif opcion == "0":
+            print("\n↩️  Cancelado")
             return
-
-        response = self.send_command(f"SET {device_id} {estado}")
-
-        if response.startswith("OK"):
-            emoji = "🟢" if estado == "ON" else "⚫"
-            print(f"\n✅ {emoji} Dispositivo '{device_id}' cambiado a {estado}")
         else:
-            print(f"\n❌ {response}")
+            print("\n❌ Opción no válida")
 
         print()
 
@@ -305,7 +485,7 @@ class DomoticClient:
         if self.socket:
             try:
                 self.socket.close()
-            except:
+            except Exception:
                 pass
 
         self.connected = False
@@ -370,7 +550,7 @@ class DomoticClient:
             try:
                 self.send_command("EXIT")
                 self.socket.close()
-            except:
+            except Exception:
                 pass
 
         print("Cliente cerrado correctamente.\n")
@@ -380,7 +560,7 @@ class DomoticClient:
         if self.socket:
             try:
                 self.socket.close()
-            except:
+            except Exception:
                 pass
         self.connected = False
         self.authenticated = False

@@ -136,12 +136,12 @@ const App: React.FC = () => {
     <div className="relative w-full h-screen bg-slate-900 overflow-hidden">
       <RoomScene roomState={roomState} />
 
-      <Controls 
+      {/* <Controls 
         state={roomState} 
         onUpdate={handleUpdateState} 
         onCommand={handleCommand}
         isProcessing={isProcessing}
-      />
+      /> */}
 
       {/* Connection Status Indicator */}
       <div className="absolute top-4 left-4 z-50">

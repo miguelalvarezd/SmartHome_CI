@@ -17,28 +17,67 @@ from datetime import datetime
 DEFAULT_PORT = 5001
 
 
-def format_device_info(device):
-    """Formatea la información de un dispositivo de forma legible"""
-    emoji = "💡" if device["type"] == "luz" else "🔌"
-    estado_emoji = "🟢" if device["estado"] == "ON" else "⚫"
+def format_devices_table(devices):
+    """Formatea los dispositivos en una tabla legible"""
+    lines = []
 
-    auto_off_info = ""
-    if device["auto_off"] > 0:
-        auto_off_info = f" [Auto-off: {device['auto_off']}s]"
+    # Encabezado
+    header = f"{'ID':<20} {'Tipo':<12} {'Estado':<8} {'Auto-Off':<10} {'Parámetros'}"
+    lines.append(header)
+    lines.append("=" * 100)
 
-    return f"{emoji} {device['id']:<20} {estado_emoji} {device['estado']:<5}{auto_off_info}"
+    for device in devices:
+        dev_id = device["id"]
+        dev_type = device["type"]
+        estado = device.get("estado", "N/A")
+        auto_off = device.get("auto_off", 0)
+
+        # Auto-off solo si aplica
+        auto_off_str = f"{auto_off}s" if auto_off > 0 else "--"
+
+        # Parámetros específicos según tipo
+        params = []
+
+        if dev_type == "luz":
+            brightness = device.get("brightness", 0)
+            color = device.get("color", "#ffffff")
+            params.append(f"Brillo: {brightness}%")
+            params.append(f"Color: {color}")
+
+        elif dev_type == "cortinas":
+            curtains = device.get("curtains", 0)
+            params.append(f"Posición: {curtains}%")
+            estado = "--"  # Cortinas no tienen estado ON/OFF
+            auto_off_str = "--"
+
+        elif dev_type == "termostato":
+            temp = device.get("temperature", 0)
+            target_temp = device.get("target_temperature", 0)
+            params.append(f"Actual: {temp}°C")
+            params.append(f"Objetivo: {target_temp}°C")
+            estado = "--"  # Termostato no tiene estado ON/OFF
+            auto_off_str = "--"
+
+        params_str = " | ".join(params) if params else "--"
+
+        line = (
+            f"{dev_id:<20} {dev_type:<12} {estado:<8} {auto_off_str:<10} {params_str}"
+        )
+        lines.append(line)
+
+    return "\n".join(lines)
 
 
 def listen_udp_telemetry(port):
     """
     Escucha el broadcast UDP de telemetría y muestra los datos
     """
-    print("=" * 70)
-    print("           LISTENER DE TELEMETRÍA UDP - SISTEMA DOMÓTICO")
-    print("=" * 70)
-    print(f"\n📡 Escuchando broadcast en puerto {port}...")
-    print("🔄 Esperando paquetes UDP...\n")
-    print("Presiona Ctrl+C para detener\n")
+    print("=" * 100)
+    print("LISTENER DE TELEMETRÍA UDP - SISTEMA DOMÓTICO")
+    print("=" * 100)
+    print(f"\nEscuchando broadcast en puerto {port}...")
+    print("Esperando paquetes UDP...")
+    print("\nPresiona Ctrl+C para detener\n")
 
     # Crear socket UDP
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -70,37 +109,35 @@ def listen_udp_telemetry(port):
                 # print('\033[2J\033[H', end='')
 
                 # Mostrar información
-                print("\n" + "=" * 70)
-                print(f"📦 Paquete #{packet_count} recibido desde {addr[0]}:{addr[1]}")
-                print(f"🕐 Timestamp del servidor: {server_time}")
-                print(f"🏠 Dispositivos en la casa: {len(devices)}")
-                print("=" * 70)
+                print("\n" + "=" * 100)
+                print(
+                    f"Paquete #{packet_count} | Origen: {addr[0]}:{addr[1]} | Timestamp: {server_time}"
+                )
+                print(f"Total dispositivos: {len(devices)}")
+                print("=" * 100)
 
                 if devices:
-                    print(f"\n{'Dispositivo':<30} {'Estado':<15} {'Info'}")
-                    print("-" * 70)
-                    for device in devices:
-                        print(format_device_info(device))
+                    print("\n" + format_devices_table(devices))
                 else:
-                    print("\n⚠️  No hay dispositivos registrados")
+                    print("\nNo hay dispositivos registrados")
 
-                print("-" * 70)
+                print("\n" + "=" * 100)
                 local_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"🕐 Recibido localmente: {local_time}")
+                print(f"Recibido localmente: {local_time}")
                 print()
 
             except json.JSONDecodeError:
-                print(f"⚠️  Error decodificando JSON desde {addr}")
+                print(f"Error decodificando JSON desde {addr}")
             except Exception as e:
-                print(f"❌ Error procesando paquete: {e}")
+                print(f"Error procesando paquete: {e}")
 
     except KeyboardInterrupt:
-        print("\n\n👋 Listener detenido por el usuario")
+        print("\n\nListener detenido por el usuario")
     except Exception as e:
-        print(f"\n❌ Error en listener: {e}")
+        print(f"\nError en listener: {e}")
     finally:
         sock.close()
-        print(f"\n📊 Total de paquetes recibidos: {packet_count}")
+        print(f"\nTotal de paquetes recibidos: {packet_count}")
         print("Socket UDP cerrado correctamente\n")
 
 
@@ -113,7 +150,7 @@ def main():
         try:
             port = int(sys.argv[1])
         except ValueError:
-            print(f"❌ Puerto inválido: {sys.argv[1]}")
+            print(f"Puerto inválido: {sys.argv[1]}")
             print(f"Usando puerto por defecto: {DEFAULT_PORT}")
             port = DEFAULT_PORT
 

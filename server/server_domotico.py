@@ -42,18 +42,33 @@ class Device:
 
     def __init__(self, device_id: str, device_type: str, estado: str = "OFF"):
         self.id = device_id
-        self.type = device_type  # 'luz' o 'enchufe'
-        self.estado = estado  # 'ON' o 'OFF'
-        self.auto_off = 0  # segundos para apagado automático (0 = desactivado)
-        self.ultimo_cambio = datetime.now().isoformat()
-        self.auto_off_timer = None  # Temporizador activo
+        self.type = device_type  # 'luz', 'enchufe', 'cortinas', 'termostato'
 
-        # Nuevos parámetros para el simulador 3D
-        self.brightness = 40  # Intensidad de luz (0-100)
-        self.color = "#ffffff"  # Color de luz (hex)
-        self.curtains = 0  # Posición de cortinas (0-100)
-        self.temperature = 19  # Temperatura actual
-        self.target_temperature = 21  # Temperatura objetivo
+        # Estado y auto_off solo para dispositivos que se encienden/apagan
+        if device_type in ["cortinas", "termostato"]:
+            self.estado = "N/A"  # Cortinas y termostato no tienen estado ON/OFF
+            self.auto_off = 0  # No aplica auto-off
+        else:
+            self.estado = estado  # 'ON' o 'OFF'
+            self.auto_off = 0  # segundos para apagado automático (0 = desactivado)
+
+        self.ultimo_cambio = datetime.now().isoformat()
+        self.auto_off_timer = None  # Temporizador activo (solo para luces/enchufes)
+
+        # Parámetros específicos por tipo de dispositivo
+        self.brightness = 40 if device_type == "luz" else 0  # Intensidad de luz (0-100)
+        self.color = (
+            "#ffffff" if device_type == "luz" else "#000000"
+        )  # Color de luz (hex)
+        self.curtains = (
+            50 if device_type == "cortinas" else 0
+        )  # Posición de cortinas (0-100)
+        self.temperature = (
+            19 if device_type == "termostato" else 0
+        )  # Temperatura actual
+        self.target_temperature = (
+            21 if device_type == "termostato" else 0
+        )  # Temperatura objetivo
 
     def to_dict(self) -> dict:
         """Serializa el dispositivo a diccionario"""
@@ -95,6 +110,8 @@ class DeviceManager:
             ("luz_salon", "luz"),
             ("enchufe_tv", "enchufe"),
             ("enchufe_calefactor", "enchufe"),
+            ("cortinas", "cortinas"),
+            ("termostato", "termostato"),
         ]
 
         with self.lock:
@@ -213,20 +230,25 @@ class DeviceManager:
     def set_curtains(self, curtains: int) -> bool:
         """Establece la posición de las cortinas (0-100)"""
         with self.lock:
+            device = self.devices.get("cortinas")
+            if not device:
+                return False
             curtains = max(0, min(100, curtains))
-            # Actualizar en todos los dispositivos para sincronizar
-            for device in self.devices.values():
-                device.curtains = curtains
-            self._add_log("CURTAINS", f"Cortinas ajustadas a {curtains}%")
+            device.curtains = curtains
+            device.ultimo_cambio = datetime.now().isoformat()
+            self._add_log("cortinas", f"Posición ajustada a {curtains}%")
             return True
 
     def set_temperature(self, target_temp: float) -> bool:
         """Establece la temperatura objetivo"""
         with self.lock:
+            device = self.devices.get("termostato")
+            if not device:
+                return False
             target_temp = max(16, min(30, target_temp))
-            for device in self.devices.values():
-                device.target_temperature = target_temp
-            self._add_log("CLIMATE", f"Temperatura objetivo: {target_temp}°C")
+            device.target_temperature = target_temp
+            device.ultimo_cambio = datetime.now().isoformat()
+            self._add_log("termostato", f"Temperatura objetivo: {target_temp}°C")
             return True
 
     def get_log(self, limit: int = 20) -> List[str]:
@@ -384,16 +406,93 @@ class TCPServer:
         if not authenticated:
             return f"ERROR {cmd}: Requiere autenticación (usar LOGIN primero)"
 
-        # SET <id> <ON|OFF>
+        # SET <id> <ON|OFF> o SET <id> <BRIGHTNESS|COLOR> <value> o SET cortinas LEVEL <value> o SET termostato TEMP <value>
         if cmd == "SET":
-            if len(parts) != 3:
-                return "ERROR SET: Uso: SET <device_id> <ON|OFF>"
-            device_id, estado = parts[1], parts[2].upper()
-            if estado not in ["ON", "OFF"]:
-                return "ERROR SET: Estado debe ser ON o OFF"
-            if self.device_manager.set_device_state(device_id, estado):
-                return f"OK SET {device_id} {estado}"
-            return f"ERROR Dispositivo '{device_id}' no encontrado"
+            if len(parts) < 3:
+                return "ERROR SET: Uso: SET <device_id> <ON|OFF|BRIGHTNESS|COLOR> [value] o SET cortinas LEVEL <0-100> o SET termostato TEMP <16-30>"
+
+            device_id = parts[1]
+            subcommand = parts[2].upper()
+
+            # SET cortinas LEVEL <0-100> (también acepta persianas por compatibilidad)
+            if device_id.lower() in ["persianas", "cortinas"]:
+                if subcommand == "LEVEL" and len(parts) == 4:
+                    try:
+                        level = int(parts[3])
+                        if level < 0 or level > 100:
+                            return "ERROR SET: El nivel de cortinas debe estar entre 0 y 100"
+                        device = self.device_manager.devices.get("cortinas")
+                        if device:
+                            device.curtains = level
+                            device.ultimo_cambio = datetime.now().isoformat()
+                            self.device_manager._add_log(
+                                "cortinas", f"Posición ajustada a {level}%"
+                            )
+                            return f"OK SET cortinas LEVEL {level}"
+                        return "ERROR Dispositivo cortinas no encontrado"
+                    except ValueError:
+                        return "ERROR SET: El nivel debe ser un número entero"
+                return "ERROR SET: Uso: SET cortinas LEVEL <0-100>"
+
+            # SET termostato TEMP <16-30> (también acepta clima por compatibilidad)
+            if device_id.lower() in ["clima", "termostato"]:
+                if subcommand == "TEMP" and len(parts) == 4:
+                    try:
+                        temp = float(parts[3])
+                        if temp < 16 or temp > 30:
+                            return (
+                                "ERROR SET: La temperatura debe estar entre 16 y 30°C"
+                            )
+                        device = self.device_manager.devices.get("termostato")
+                        if device:
+                            device.target_temperature = temp
+                            device.ultimo_cambio = datetime.now().isoformat()
+                            self.device_manager._add_log(
+                                "termostato", f"Temperatura objetivo: {temp}°C"
+                            )
+                            return f"OK SET termostato TEMP {temp}"
+                        return "ERROR Dispositivo termostato no encontrado"
+                    except ValueError:
+                        return "ERROR SET: La temperatura debe ser un número"
+                return "ERROR SET: Uso: SET termostato TEMP <16-30>"
+
+            # SET <device_id> ON|OFF
+            if subcommand in ["ON", "OFF"]:
+                if self.device_manager.set_device_state(device_id, subcommand):
+                    return f"OK SET {device_id} {subcommand}"
+                return f"ERROR Dispositivo '{device_id}' no encontrado"
+
+            # SET <device_id> BRIGHTNESS <0-100>
+            if subcommand == "BRIGHTNESS":
+                if len(parts) != 4:
+                    return "ERROR SET: Uso: SET <device_id> BRIGHTNESS <0-100>"
+                try:
+                    brightness = int(parts[3])
+                    if brightness < 0 or brightness > 100:
+                        return "ERROR SET: El brillo debe estar entre 0 y 100"
+                    if self.device_manager.set_brightness(device_id, brightness):
+                        # Auto-encender si el brillo es > 0
+                        if brightness > 0:
+                            self.device_manager.set_device_state(device_id, "ON")
+                        return f"OK SET {device_id} BRIGHTNESS {brightness}"
+                    return (
+                        f"ERROR Dispositivo '{device_id}' no encontrado o no es una luz"
+                    )
+                except ValueError:
+                    return "ERROR SET: El brillo debe ser un número entero"
+
+            # SET <device_id> COLOR <#RRGGBB>
+            if subcommand == "COLOR":
+                if len(parts) != 4:
+                    return "ERROR SET: Uso: SET <device_id> COLOR <#RRGGBB>"
+                color = parts[3]
+                if not color.startswith("#") or len(color) != 7:
+                    return "ERROR SET: El color debe estar en formato #RRGGBB"
+                if self.device_manager.set_color(device_id, color):
+                    return f"OK SET {device_id} COLOR {color}"
+                return f"ERROR Dispositivo '{device_id}' no encontrado o no es una luz"
+
+            return f"ERROR SET: Subcomando '{subcommand}' no reconocido. Use: ON, OFF, BRIGHTNESS, COLOR, LEVEL (persianas), TEMP (clima)"
 
         # AUTO_OFF <id> <segundos>
         if cmd == "AUTO_OFF":

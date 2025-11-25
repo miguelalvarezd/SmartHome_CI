@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f1f2b5 0%, #135058 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -33,7 +33,7 @@
         }
 
         header h1 {
-            color: #667eea;
+            color: #135058;
             font-size: 2.5em;
             margin-bottom: 10px;
         }
@@ -70,12 +70,12 @@
 
         .tab-button:hover {
             background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
+            color: #135058;
         }
 
         .tab-button.active {
             background: white;
-            color: #667eea;
+            color: #135058;
         }
 
         .tab-button.active::after {
@@ -85,7 +85,7 @@
             left: 0;
             right: 0;
             height: 3px;
-            background: #667eea;
+            background: #135058;
         }
 
         .tab-content {
@@ -156,6 +156,7 @@
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 25px;
             margin-bottom: 30px;
+            align-items: start;
         }
 
         .device-card {
@@ -164,11 +165,31 @@
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             transition: transform 0.3s, box-shadow 0.3s;
+            height: fit-content;
         }
 
         .device-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        /* Make sure the last card in an odd-count row doesn't stretch */
+        @media (min-width: 900px) {
+            .grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 600px) and (max-width: 899px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 599px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .device-header {
@@ -289,7 +310,7 @@
 
         .auto-off-controls input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #135058;
         }
 
         .btn-auto {
@@ -333,7 +354,7 @@
 
         .param-value {
             font-weight: bold;
-            color: #667eea;
+            color: #135058;
         }
 
         .slider-container {
@@ -356,13 +377,13 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #667eea;
+            background: #135058;
             cursor: pointer;
             transition: all 0.3s;
         }
 
         .slider::-webkit-slider-thumb:hover {
-            background: #5568d3;
+            background: #135058;
             transform: scale(1.2);
         }
 
@@ -370,14 +391,14 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #667eea;
+            background: #135058;
             cursor: pointer;
             border: none;
             transition: all 0.3s;
         }
 
         .slider::-moz-range-thumb:hover {
-            background: #5568d3;
+            background: #135058;
             transform: scale(1.2);
         }
 
@@ -398,7 +419,7 @@
 
         .color-picker:hover {
             transform: scale(1.1);
-            border-color: #667eea;
+            border-color: #135058;
         }
 
         .temp-control {
@@ -416,7 +437,7 @@
             text-align: center;
             font-size: 1.8em;
             font-weight: bold;
-            color: #667eea;
+            color: #135058;
         }
 
         .temp-btn {
@@ -424,7 +445,7 @@
             height: 40px;
             border: none;
             border-radius: 8px;
-            background: #667eea;
+            background: #135058;
             color: white;
             font-size: 1.5em;
             font-weight: bold;
@@ -433,12 +454,12 @@
         }
 
         .temp-btn:hover {
-            background: #5568d3;
+            background: #135058;
             transform: scale(1.1);
         }
 
         .env-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f1f2b5 0%, #135058 100%);
             color: white;
         }
 
@@ -468,7 +489,7 @@
         }
 
         .btn-refresh {
-            background: #667eea;
+            background: #135058;
             color: white;
             padding: 10px 20px;
             border: none;
@@ -479,7 +500,7 @@
         }
 
         .btn-refresh:hover {
-            background: #5568d3;
+            background: #135058;
             transform: scale(1.05);
         }
 
@@ -570,10 +591,6 @@
         @media (max-width: 768px) {
             header h1 {
                 font-size: 1.8em;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
             }
 
             .tab-button {
