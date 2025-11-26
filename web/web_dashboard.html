@@ -588,6 +588,252 @@
             margin-top: 5px;
         }
 
+        /* ==================== CHATBOT STYLES ==================== */
+        .chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .chat-toggle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #135058 0%, #1a6b75 100%);
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(19, 80, 88, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            transition: all 0.3s;
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(19, 80, 88, 0.5);
+        }
+
+        .chat-window {
+            position: absolute;
+            bottom: 75px;
+            right: 0;
+            width: 380px;
+            max-height: 500px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-window.open {
+            display: flex;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #135058 0%, #1a6b75 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chat-header h3 {
+            margin: 0;
+            flex: 1;
+            font-size: 1.1em;
+        }
+
+        .chat-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            max-height: 300px;
+            min-height: 200px;
+            background: #f9fafb;
+        }
+
+        .chat-message {
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-message.user {
+            align-items: flex-end;
+        }
+
+        .chat-message.bot {
+            align-items: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .chat-message.user .message-bubble {
+            background: #135058;
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .chat-message.bot .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-actions {
+            font-size: 0.8em;
+            color: #10b981;
+            margin-top: 5px;
+            padding: 5px 10px;
+            background: #ecfdf5;
+            border-radius: 8px;
+        }
+
+        .chat-input-container {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 0.95em;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #135058;
+        }
+
+        .chat-send {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #135058;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-send:hover {
+            background: #1a6b75;
+            transform: scale(1.05);
+        }
+
+        .chat-send:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .chat-mic {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #6b7280;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-mic:hover {
+            background: #4b5563;
+            transform: scale(1.05);
+        }
+
+        .chat-mic.recording {
+            background: #ef4444;
+            animation: pulse-mic 1s infinite;
+        }
+
+        .chat-mic:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        @keyframes pulse-mic {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        }
+
+        .voice-status {
+            font-size: 0.8em;
+            color: #6b7280;
+            text-align: center;
+            padding: 5px;
+            display: none;
+        }
+
+        .voice-status.active {
+            display: block;
+            color: #ef4444;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 10px 15px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #135058;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+
         @media (max-width: 768px) {
             header h1 {
                 font-size: 1.8em;
@@ -660,7 +906,7 @@
         <!-- Simulator Tab Content -->
         <div id="simulatorTab" class="tab-content">
             <div class="simulator-container">
-                <iframe src="http://192.168.1.142:3000/" title="SmartHome 3D Simulator"></iframe>
+                <iframe src="http://localhost:3000/" title="SmartHome 3D Simulator"></iframe>
             </div>
         </div>
     </div>
@@ -669,9 +915,44 @@
         <span id="notificationMessage"></span>
     </div>
 
+    <!-- Chatbot Jarvis -->
+    <div class="chat-container" id="chatContainer">
+        <button class="chat-toggle" onclick="toggleChat()" title="Hablar con Jarvis">
+            🤖
+        </button>
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <span>🤖</span>
+                <h3>Jarvis - Asistente Domótico</h3>
+                <button class="chat-close" onclick="toggleChat()">×</button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-message bot">
+                    <div class="message-bubble">
+                        ¡Hola! Soy Jarvis, tu asistente de domótica. 
+                        Puedo encender luces, ajustar temperatura, controlar cortinas y más. 
+                        ¿En qué puedo ayudarte?
+                    </div>
+                </div>
+            </div>
+            <div class="voice-status" id="voiceStatus">🎤 Escuchando...</div>
+            <div class="chat-input-container">
+                <button class="chat-mic" onclick="toggleVoiceRecording()" id="chatMicBtn" title="Hablar por micrófono">
+                    🎤
+                </button>
+                <input type="text" class="chat-input" id="chatInput" 
+                    placeholder="Escribe o habla un comando..." 
+                    onkeypress="if(event.key==='Enter') sendChatMessage()">
+                <button class="chat-send" onclick="sendChatMessage()" id="chatSendBtn">
+                    ➤
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Configuración
-        const API_BASE_URL = 'http://192.168.1.142:8080/api';
+        const API_BASE_URL = 'http://localhost:8080/api';
         const UPDATE_INTERVAL = 5000; // 5 segundos
 
         let updateTimer = null;
@@ -1194,6 +1475,185 @@
                 console.error('Error ajustando temperatura:', error);
                 showNotification('Error al ajustar la temperatura', 'error');
             }
+        }
+
+        // ==================== CHATBOT JARVIS ====================
+
+        let chatOpen = false;
+        let isRecording = false;
+        let recognition = null;
+
+        // Inicializar reconocimiento de voz
+        function initVoiceRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.log('Reconocimiento de voz no soportado');
+                document.getElementById('chatMicBtn').style.display = 'none';
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'es-ES';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = function() {
+                isRecording = true;
+                document.getElementById('chatMicBtn').classList.add('recording');
+                document.getElementById('voiceStatus').classList.add('active');
+                document.getElementById('chatInput').placeholder = 'Escuchando...';
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('chatInput').value = transcript;
+                stopVoiceRecording();
+                // Enviar automáticamente el mensaje
+                setTimeout(() => sendChatMessage(), 300);
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Error de reconocimiento:', event.error);
+                stopVoiceRecording();
+                if (event.error === 'no-speech') {
+                    showNotification('No se detectó voz. Intenta de nuevo.', 'error');
+                } else if (event.error === 'not-allowed') {
+                    showNotification('Permiso de micrófono denegado.', 'error');
+                }
+            };
+
+            recognition.onend = function() {
+                stopVoiceRecording();
+            };
+        }
+
+        function toggleVoiceRecording() {
+            if (!recognition) {
+                initVoiceRecognition();
+                if (!recognition) {
+                    showNotification('Tu navegador no soporta reconocimiento de voz', 'error');
+                    return;
+                }
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Error iniciando reconocimiento:', e);
+                }
+            }
+        }
+
+        function stopVoiceRecording() {
+            isRecording = false;
+            document.getElementById('chatMicBtn').classList.remove('recording');
+            document.getElementById('voiceStatus').classList.remove('active');
+            document.getElementById('chatInput').placeholder = 'Escribe o habla un comando...';
+        }
+
+        function toggleChat() {
+            chatOpen = !chatOpen;
+            const chatWindow = document.getElementById('chatWindow');
+            if (chatOpen) {
+                chatWindow.classList.add('open');
+                document.getElementById('chatInput').focus();
+                // Inicializar reconocimiento de voz al abrir el chat
+                if (!recognition) initVoiceRecognition();
+            } else {
+                chatWindow.classList.remove('open');
+                // Detener grabación si está activa
+                if (isRecording && recognition) {
+                    recognition.stop();
+                }
+            }
+        }
+
+        function addChatMessage(text, isUser = false, actions = []) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${isUser ? 'user' : 'bot'}`;
+            
+            let html = `<div class="message-bubble">${text}</div>`;
+            
+            if (actions && actions.length > 0) {
+                html += `<div class="message-actions">✅ ${actions.join(', ')}</div>`;
+            }
+            
+            messageDiv.innerHTML = html;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const messagesDiv = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-message bot';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <div class="message-bubble">
+                    <div class="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('chatSendBtn');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Mostrar mensaje del usuario
+            addChatMessage(message, true);
+            input.value = '';
+            
+            // Deshabilitar input mientras procesa
+            input.disabled = true;
+            sendBtn.disabled = true;
+            
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                hideTypingIndicator();
+                
+                if (data.success) {
+                    addChatMessage(data.response, false, data.actions);
+                    // Si hubo acciones, recargar dispositivos
+                    if (data.actions && data.actions.length > 0) {
+                        setTimeout(() => loadDevices(), 500);
+                    }
+                } else {
+                    addChatMessage(`❌ ${data.error || 'Error al procesar el mensaje'}`, false);
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('Error en chat:', error);
+                addChatMessage('❌ No se pudo conectar con el servidor. Verifica que el servidor esté activo.', false);
+            }
+            
+            // Rehabilitar input
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
         }
 
         // ==================== INICIALIZACIÓN ====================

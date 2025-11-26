@@ -5,14 +5,18 @@ Sistema completo de domótica basado en arquitectura Cliente-Servidor con capaci
 ## 📋 Características Principales
 
 - **Arquitectura Cliente-Servidor** con triple protocolo (TCP + UDP + REST)
-- **Control de 3 dispositivos** virtuales (1 luz + 2 enchufes)
+- **Control de 5 dispositivos** virtuales:
+  - 1 luz inteligente (brillo, color)
+  - 2 enchufes (TV, calefactor)
+  - 1 sistema de cortinas (posición 0-100%)
+  - 1 termostato (temperatura 16-30°C)
 - **Simulador 3D** interactivo con React y Three.js
-- **Parámetros avanzados**: brillo, color de luz, cortinas, temperatura
-- **Autoapagado programable** con threading.Timer
-- **Gemelo Digital Web** con interfaz moderna y actualización automática
+- **Parámetros avanzados**: brillo, color de luz, posición de cortinas, temperatura
+- **Autoapagado programable** con threading.Timer (solo luces y enchufes)
+- **Dashboard Web** con interfaz moderna y actualización automática
 - **Telemetría en tiempo real** vía UDP broadcast
 - **Concurrencia real** con threading y locks (thread-safe)
-- **Cliente CLI interactivo** para terminal
+- **Cliente CLI interactivo** con modo guiado paso a paso
 - **API REST JSON** para integración con aplicaciones
 
 ---
@@ -34,6 +38,7 @@ Esto creará un entorno virtual (`venv/`) e instalará todas las dependencias.
 ```
 
 O manualmente:
+
 ```powershell
 .\venv\Scripts\Activate.ps1
 python server\server_domotico.py
@@ -42,22 +47,27 @@ python server\server_domotico.py
 ### 3. Usar el sistema
 
 **Opción A: Cliente de Consola (Terminal)**
+
 ```powershell
 .\venv\Scripts\Activate.ps1
 python client\client_console.py
 ```
+
 - Login: `admin` / `admin123` o `user` / `pass123`
 - Menú con 8 opciones para controlar dispositivos
 
 **Opción B: Gemelo Digital Web** ⭐ Recomendado
+
 - Abrir `web\web_dashboard.html` en el navegador
 - Interfaz visual moderna con actualización automática
 
 **Opción C: Monitor de Telemetría UDP**
+
 ```powershell
 .\venv\Scripts\Activate.ps1
 python client\udp_listener.py
 ```
+
 - Muestra el estado broadcast cada 2 segundos
 
 ---
@@ -70,21 +80,27 @@ Miniproyecto/
 │   └── server_domotico.py     # Lógica principal (TCP/UDP/REST)
 │
 ├── client/                    # Aplicaciones cliente
-│   ├── client_console.py      # Cliente CLI interactivo
-│   └── udp_listener.py        # Monitor de telemetría
+│   ├── client_console.py      # Cliente CLI interactivo con modo guiado
+│   └── udp_listener.py        # Monitor de telemetría (formato tabla)
 │
-├── web/                       # Gemelo digital web
+├── web/                       # Dashboard web
 │   └── web_dashboard.html     # Interfaz HTML+JS+CSS
 │
+├── home_simulator/            # Simulador 3D (React + Three.js)
+│   ├── App.tsx                # Componente principal
+│   ├── components/            # Controles y escena 3D
+│   ├── services/              # Integración API
+│   └── package.json           # Dependencias Node.js
+│
 ├── scripts/                   # Automatización
-│   ├── install.ps1            # Instalador con venv
-│   ├── start.ps1              # Inicio rápido
+│   ├── install.ps1            # Instalador (Python + Node.js)
+│   ├── start.ps1              # Inicio rápido (servidor + simulador)
 │   └── test_sistema.py        # Suite de pruebas
 │
 ├── docs/                      # Documentación técnica
 │   └── ARQUITECTURA.md        # Diagramas y detalles
 │
-├── venv/                      # Entorno virtual (creado por install.ps1)
+├── venv/                      # Entorno virtual Python
 ├── requirements.txt           # Dependencias Python
 ├── .gitignore                 # Configuración Git
 └── README.md                  # Este archivo
@@ -103,6 +119,7 @@ Servidor central multi-hilo que gestiona todo el sistema:
 - **API REST (Puerto 8080)** - Endpoints JSON para gemelo digital
 
 **Clases principales:**
+
 - `Device` - Modelo de dispositivo
 - `DeviceManager` - Lógica de negocio (thread-safe con locks)
 - `TCPServer` - Servidor de comandos TCP
@@ -111,20 +128,40 @@ Servidor central multi-hilo que gestiona todo el sistema:
 
 ### Cliente Terminal (`client/client_console.py`)
 
-Cliente interactivo con menú CLI:
+Cliente interactivo con menú CLI y modo guiado:
+
 - Autenticación de usuarios
-- Control completo de dispositivos
+- **Modo guiado** paso a paso para controlar todos los dispositivos
+- Control de luces (ON/OFF, brillo, color)
+- Control de enchufes (TV, calefactor)
+- Control de cortinas (posición 0-100%)
+- Control de termostato (temperatura 16-30°C)
 - Consulta de estado y logs
 - Configuración de autoapagado
 
-### Gemelo Digital (`web/web_dashboard.html`)
+### Dashboard Web (`web/web_dashboard.html`)
 
 Interfaz web moderna:
-- Visualización en tiempo real de dispositivos
-- Control ON/OFF con botones
+
+- Visualización en tiempo real de todos los dispositivos
+- Control ON/OFF para luces y enchufes
+- Sliders para brillo y cortinas
+- Controles +/- para temperatura
+- Selector de color para luces
 - Configuración de autoapagado
 - Historial de eventos
 - Actualización automática cada 5 segundos
+- **Pestaña Simulador 3D** integrada
+
+### Simulador 3D (`home_simulator/`)
+
+Visualización 3D interactiva:
+
+- Renderizado con **Three.js** y **React**
+- Sincronización bidireccional con el servidor
+- Indicador de conexión en tiempo real
+- Polling automático cada 2 segundos
+- Controles visuales para todos los parámetros
 
 ---
 
@@ -140,26 +177,37 @@ Interfaz web moderna:
 | `LIST` | Listar dispositivos | No |
 | `STATUS <id>` | Estado de dispositivo | No |
 | `SET <id> <ON\|OFF>` | Encender/Apagar | **Sí** |
+| `SET <id> BRIGHTNESS <0-100>` | Ajustar brillo de luz | **Sí** |
+| `SET <id> COLOR <#RRGGBB>` | Cambiar color de luz | **Sí** |
+| `SET cortinas LEVEL <0-100>` | Posición de cortinas | **Sí** |
+| `SET termostato TEMP <16-30>` | Temperatura objetivo | **Sí** |
 | `AUTO_OFF <id> <seg>` | Programar apagado | **Sí** |
 | `LOG` | Ver historial | No |
 | `EXIT` | Cerrar conexión | No |
 
 **Ejemplo de uso:**
-```
+
+```bash
 > LOGIN admin admin123
 < OK LOGIN Bienvenido admin
 
 > LIST
-< OK 3 luz_salon,OFF,0,40,#ffffff,0,19,21;enchufe_tv,OFF,0,40,#ffffff,0,19,21;enchufe_calefactor,OFF,0,40,#ffffff,0,19,21
+< OK 5 luz_salon,OFF,0,40,#ffffff,0,0,0;enchufe_tv,OFF,0,0,#000000,0,0,0;enchufe_calefactor,OFF,0,0,#000000,0,0,0;cortinas,N/A,0,0,#000000,50,0,0;termostato,N/A,0,0,#000000,0,19,21
 
 > SET luz_salon ON
 < OK SET luz_salon ON
 
-> BRIGHTNESS luz_salon 75
-< OK BRIGHTNESS luz_salon 75
+> SET luz_salon BRIGHTNESS 75
+< OK SET luz_salon BRIGHTNESS 75
 
-> TEMP 22
-< OK TEMP 22.0
+> SET luz_salon COLOR #ff6600
+< OK SET luz_salon COLOR #ff6600
+
+> SET cortinas LEVEL 80
+< OK SET cortinas LEVEL 80
+
+> SET termostato TEMP 22
+< OK SET termostato TEMP 22.0
 ```
 
 ### UDP - Telemetría (Puerto 5001)
@@ -189,11 +237,16 @@ Broadcast automático cada 2 segundos en formato JSON:
 |--------|----------|-------------|
 | GET | `/api/status` | Estado de todos los dispositivos |
 | GET | `/api/device/<id>` | Estado de un dispositivo |
-| POST | `/api/control` | Controlar ON/OFF |
+| POST | `/api/control` | Controlar ON/OFF (luces y enchufes) |
+| POST | `/api/brightness` | Ajustar brillo de luz |
+| POST | `/api/color` | Cambiar color de luz |
+| POST | `/api/curtains` | Posición de cortinas |
+| POST | `/api/temperature` | Temperatura objetivo |
 | POST | `/api/auto_off` | Configurar autoapagado |
 | GET | `/api/log?limit=20` | Historial de eventos |
 
 **Ejemplo POST /api/control:**
+
 ```json
 {
   "id": "luz_salon",
@@ -202,6 +255,7 @@ Broadcast automático cada 2 segundos en formato JSON:
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -214,15 +268,15 @@ Broadcast automático cada 2 segundos en formato JSON:
 
 ## 🎯 Dispositivos Disponibles
 
-| ID | Tipo | Icono | Descripción | Parámetros Especiales |
-|----|------|-------|-------------|-----------------------|
-| `luz_salon` | luz | 💡 | Luz principal del salón | Brillo (0-100%), Color (#RRGGBB) |
-| `enchufe_tv` | enchufe | 📺 | Smart plug para TV | - |
-| `enchufe_calefactor` | enchufe | 🔥 | Smart plug para calefacción | - |
+| ID | Tipo | Descripción | Parámetros | Estado |
+|----|------|-------------|------------|--------|
+| `luz_salon` | luz | Luz principal del salón | Brillo (0-100%), Color (#RRGGBB) | ON/OFF |
+| `enchufe_tv` | enchufe | Smart plug para TV | - | ON/OFF |
+| `enchufe_calefactor` | enchufe | Smart plug para calefacción | - | ON/OFF |
+| `cortinas` | cortinas | Sistema de cortinas motorizadas | Posición (0-100%) | N/A |
+| `termostato` | termostato | Control de temperatura | Actual, Objetivo (16-30°C) | N/A |
 
-**Parámetros Globales (todos los dispositivos):**
-- 🪟 **Cortinas**: Posición 0-100%
-- 🌡️ **Temperatura**: Actual y objetivo (16-30°C)
+**Nota:** Las cortinas y el termostato NO tienen estado ON/OFF ni auto-apagado, solo parámetros de posición y temperatura.
 
 ---
 
@@ -238,6 +292,7 @@ Broadcast automático cada 2 segundos en formato JSON:
 ## 💡 Ejemplos de Uso
 
 ### Ejemplo 1: Encender luz desde CLI
+
 ```powershell
 python client\client_console.py
 # 1. Opción 1: Login (admin/admin123)
@@ -247,6 +302,7 @@ python client\client_console.py
 ```
 
 ### Ejemplo 2: Autoapagado desde Web
+
 1. Abrir `web\web_dashboard.html`
 2. Click en "Encender" de `luz_salon`
 3. En "Auto-apagado", escribir `30`
@@ -254,6 +310,7 @@ python client\client_console.py
 5. Esperar 30 segundos → se apaga automáticamente
 
 ### Ejemplo 3: Monitorizar telemetría
+
 ```powershell
 python client\udp_listener.py
 # Verás actualizaciones cada 2 segundos con el estado completo
@@ -271,6 +328,7 @@ python scripts\test_sistema.py
 ```
 
 **Tests incluidos:**
+
 - ✅ Conexión TCP
 - ✅ Protocolo de comandos (7 comandos)
 - ✅ Autenticación y seguridad
@@ -283,20 +341,25 @@ python scripts\test_sistema.py
 ## 🛠️ Solución de Problemas
 
 ### ❌ "No se pudo conectar al servidor"
+
 **Causa:** El servidor no está en ejecución  
 **Solución:** Ejecuta `.\scripts\start.ps1` primero
 
 ### ❌ "ModuleNotFoundError"
+
 **Causa:** Dependencias no instaladas o venv no activado  
 **Solución:**
+
 ```powershell
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
 ### ❌ "Address already in use"
+
 **Causa:** Ya hay un servidor corriendo en el puerto  
 **Solución:**
+
 ```powershell
 # Buscar proceso
 netstat -ano | findstr :5000
@@ -305,8 +368,10 @@ taskkill /PID <PID> /F
 ```
 
 ### ❌ Dashboard web no carga dispositivos
+
 **Causa:** Servidor no está corriendo o problema CORS  
 **Solución:**
+
 1. Verifica que el servidor esté activo
 2. Abre la consola del navegador (F12) y revisa errores
 3. Asegúrate de usar `http://localhost:8080` (no HTTPS)
@@ -316,16 +381,19 @@ taskkill /PID <PID> /F
 ## 🔒 Seguridad y Concurrencia
 
 ### Thread-Safety
+
 - `threading.Lock` protege acceso a datos compartidos en `DeviceManager`
 - Sin race conditions
 - Múltiples clientes pueden conectarse simultáneamente
 
 ### Autenticación
+
 - Sistema simple con usuarios hardcoded (solo para desarrollo/educación)
 - Comandos de lectura (`LIST`, `STATUS`, `LOG`) son públicos
 - Comandos de escritura (`SET`, `AUTO_OFF`) requieren autenticación
 
 ⚠️ **Advertencia:** Este sistema es para desarrollo/educación. Para producción se necesitaría:
+
 - HTTPS/TLS para cifrado
 - Base de datos para persistencia
 - Sistema de autenticación robusto (JWT, OAuth)
@@ -336,6 +404,7 @@ taskkill /PID <PID> /F
 ## 📚 Documentación Adicional
 
 Para detalles técnicos avanzados, consulta:
+
 - `docs/ARQUITECTURA.md` - Diagramas de flujos, threading, protocolos
 
 ---
@@ -356,18 +425,31 @@ Para detalles técnicos avanzados, consulta:
 
 ## 🌟 Tecnologías Utilizadas
 
+**Backend (Python):**
+
 - **Python 3.8+** - Lenguaje principal
 - **Flask 3.0** - Framework web para API REST
 - **flask-cors** - CORS para desarrollo web
 - **socket** - TCP/UDP de bajo nivel
 - **threading** - Concurrencia y paralelismo
-- **HTML5 + CSS3 + JavaScript** - Frontend web
+
+**Frontend Web:**
+
+- **HTML5 + CSS3 + JavaScript** - Dashboard web
+
+**Simulador 3D (Node.js):**
+
+- **React 19.2** - Framework UI
+- **Three.js 0.181** - Renderizado 3D
+- **Vite 6.2** - Build tool
+- **TypeScript 5.7** - Tipado estático
 
 ---
 
 ## 📦 Dependencias
 
 Ver `requirements.txt`:
+
 - Flask==3.0.0
 - flask-cors==4.0.0
 - Werkzeug==3.0.1

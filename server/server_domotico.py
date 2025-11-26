@@ -20,10 +20,20 @@ import socket
 import threading
 import json
 import time
+import os
 from datetime import datetime
 from typing import Dict, List, Optional
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
+# Importar Google Generative AI si está disponible
+try:
+    import google.generativeai as genai
+
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    print("⚠️ google-generativeai no instalado. Chatbot deshabilitado.")
 
 # ==================== CONFIGURACIÓN ====================
 TCP_HOST = "0.0.0.0"
@@ -841,10 +851,147 @@ def create_api(device_manager: DeviceManager) -> Flask:
                     "POST /api/color": "Ajustar color de luz",
                     "POST /api/curtains": "Ajustar posición de cortinas",
                     "POST /api/temperature": "Ajustar temperatura objetivo",
+                    "POST /api/chat": "Chatbot IA para controlar dispositivos",
                     "GET /api/log": "Historial de eventos",
                 },
             }
         )
+
+    @app.route("/api/chat", methods=["POST"])
+    def chat_with_gemini():
+        """POST /api/chat - Chatbot IA con Gemini para control de dispositivos
+        Body JSON: {"message": "Enciende la luz del salón"}
+        Response: {"success": true, "response": "...", "actions": [...]}
+        """
+        if not GEMINI_AVAILABLE:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "Gemini no disponible. Instala: pip install google-generativeai",
+                }
+            ), 503
+
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("API_KEY") or ""
+        if not api_key:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "API_KEY de Gemini no configurada. Establece GEMINI_API_KEY o API_KEY",
+                }
+            ), 503
+
+        data = request.get_json()
+        if not data or "message" not in data:
+            return jsonify(
+                {"success": False, "error": "Formato inválido. Se requiere 'message'"}
+            ), 400
+
+        user_message = data["message"]
+
+        try:
+            # Obtener estado actual de todos los dispositivos
+            devices = device_manager.get_all_devices()
+            luz_salon = next((d for d in devices if d["id"] == "luz_salon"), {})
+            enchufe_tv = next((d for d in devices if d["id"] == "enchufe_tv"), {})
+            enchufe_calefactor = next(
+                (d for d in devices if d["id"] == "enchufe_calefactor"), {}
+            )
+            cortinas = next((d for d in devices if d["id"] == "cortinas"), {})
+            termostato = next((d for d in devices if d["id"] == "termostato"), {})
+
+            # Contexto del estado actual
+            context = f"""
+Estado actual de la habitación:
+- Luz del salón: {luz_salon.get("estado", "OFF")}, Brillo: {luz_salon.get("brightness", 0)}%, Color: {luz_salon.get("color", "#ffffff")}
+- TV: {enchufe_tv.get("estado", "OFF")}
+- Calefactor: {enchufe_calefactor.get("estado", "OFF")}
+- Cortinas: {cortinas.get("curtains", 50)}% abiertas
+- Temperatura actual: {termostato.get("temperature", 19)}°C, Objetivo: {termostato.get("target_temperature", 21)}°C
+
+Eres Jarvis, un asistente de domótica inteligente. Responde de forma breve y natural.
+Cuando el usuario pida controlar algo, responde con un JSON con la estructura:
+{{"actions": [{{"device": "nombre_dispositivo", "action": "accion", "value": valor_opcional}}], "response": "mensaje"}}
+
+Dispositivos disponibles y acciones:
+- luz_salon: ON, OFF, BRIGHTNESS (0-100), COLOR (#RRGGBB)
+- enchufe_tv: ON, OFF
+- enchufe_calefactor: ON, OFF  
+- cortinas: LEVEL (0-100)
+- termostato: TEMP (16-30)
+
+Ejemplos de respuestas JSON:
+- "Enciende la luz": {{"actions": [{{"device": "luz_salon", "action": "ON"}}], "response": "Luz encendida"}}
+- "Pon el brillo al 80%": {{"actions": [{{"device": "luz_salon", "action": "BRIGHTNESS", "value": 80}}], "response": "Brillo ajustado al 80%"}}
+- "Modo cine": {{"actions": [{{"device": "luz_salon", "action": "BRIGHTNESS", "value": 10}}, {{"device": "luz_salon", "action": "COLOR", "value": "#0000ff"}}, {{"device": "cortinas", "action": "LEVEL", "value": 0}}, {{"device": "enchufe_tv", "action": "ON"}}], "response": "Modo cine activado: luces tenues, cortinas cerradas y TV encendida"}}
+
+Si el usuario solo pregunta algo o saluda, responde normalmente sin JSON de acciones.
+"""
+
+            # Configurar Gemini
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-2.5-flash")
+
+            # Enviar mensaje
+            response = model.generate_content(f"{context}\n\nUsuario: {user_message}")
+            response_text = response.text.strip()
+
+            # Intentar parsear JSON de acciones
+            actions_executed = []
+            try:
+                # Buscar JSON en la respuesta
+                import re
+
+                json_match = re.search(
+                    r'\{[^{}]*"actions"[^{}]*\[.*?\][^{}]*\}', response_text, re.DOTALL
+                )
+                if json_match:
+                    action_data = json.loads(json_match.group())
+                    actions = action_data.get("actions", [])
+                    final_response = action_data.get("response", response_text)
+
+                    # Ejecutar cada acción
+                    for action in actions:
+                        device_id = action.get("device")
+                        action_type = action.get("action", "").upper()
+                        value = action.get("value")
+
+                        if device_id and action_type:
+                            if action_type in ["ON", "OFF"]:
+                                device_manager.set_device_state(device_id, action_type)
+                                actions_executed.append(f"{device_id} -> {action_type}")
+                            elif action_type == "BRIGHTNESS" and value is not None:
+                                device_manager.set_brightness(device_id, int(value))
+                                actions_executed.append(
+                                    f"{device_id} -> Brillo {value}%"
+                                )
+                            elif action_type == "COLOR" and value:
+                                device_manager.set_color(device_id, value)
+                                actions_executed.append(f"{device_id} -> Color {value}")
+                            elif action_type == "LEVEL" and value is not None:
+                                # set_curtains solo acepta el valor (no device_id)
+                                device_manager.set_curtains(int(value))
+                                actions_executed.append(f"Cortinas -> {value}%")
+                            elif action_type == "TEMP" and value is not None:
+                                device_manager.set_temperature(float(value))
+                                actions_executed.append(f"Temperatura -> {value}°C")
+                else:
+                    final_response = response_text
+            except (json.JSONDecodeError, KeyError):
+                final_response = response_text
+
+            return jsonify(
+                {
+                    "success": True,
+                    "response": final_response,
+                    "actions": actions_executed,
+                }
+            )
+
+        except Exception as e:
+            print(f"Error en Gemini: {e}")
+            return jsonify(
+                {"success": False, "error": f"Error procesando mensaje: {str(e)}"}
+            ), 500
 
     return app
 
