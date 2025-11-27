@@ -3,7 +3,7 @@
  * Connects the 3D simulator with the Python domotics server
  */
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://192.168.0.84:8080/api';
 
 export interface DeviceState {
   id: string;

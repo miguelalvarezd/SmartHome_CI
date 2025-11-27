@@ -1,387 +1,203 @@
 # Arquitectura Técnica - Sistema Domótico IoT
 
-Documentación técnica detallada de la arquitectura, flujos de datos y diseño del sistema.
+Documentación técnica completa de la arquitectura, protocolos, flujos de datos y diseño del sistema.
 
 ---
 
-## Diagrama de Componentes
+## Índice
+
+1. [Diagrama de Arquitectura General](#diagrama-de-arquitectura-general)
+2. [Componentes del Sistema](#componentes-del-sistema)
+3. [Modelo de Datos](#modelo-de-datos)
+4. [Protocolo TCP](#protocolo-tcp)
+5. [API REST](#api-rest)
+6. [Chatbot IA Gemini](#chatbot-ia-gemini)
+7. [Broadcast UDP](#broadcast-udp)
+8. [Concurrencia y Threading](#concurrencia-y-threading)
+9. [Flujos de Datos](#flujos-de-datos)
+10. [Seguridad](#seguridad)
+
+---
+
+## Diagrama de Arquitectura General
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          CLIENTES / INTERFACES                              │
-├─────────────┬───────────────┬───────────────┬───────────────────────────────┤
-│             │               │               │                               │
-│ Cliente CLI │ Web Dashboard │ Simulador 3D  │        UDP Listener           │
-│ (Terminal)  │ (Navegador)   │ (React+Three) │       (Telemetría)            │
-│             │               │               │                               │
-│ ┌─────────┐ │ ┌───────────┐ │ ┌───────────┐ │       ┌───────────┐           │
-│ │ Python  │ │ │ HTML/CSS  │ │ │ TypeScript│ │       │ Python    │           │
-│ │ Socket  │ │ │ JavaScript│ │ │ Fetch API │ │       │ Socket    │           │
-│ │ TCP     │ │ │ Fetch API │ │ │ Vite      │ │       │ UDP       │           │
-│ └─────┬───┘ │ └─────┬─────┘ │ └─────┬─────┘ │       └─────┬─────┘           │
-│       │     │       │       │       │       │             │                 │
-└───────┼─────┴───────┼───────┴───────┼───────┴─────────────┼─────────────────┘
-        │             │               │                     │
-        │ TCP :5000   │ HTTP :8080    │ HTTP :8080          │ UDP :5001
-        │             │               │                     │
-        ▼             ▼               ▼                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    SERVIDOR CENTRAL (server_domotico.py)                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                   DomoticServer (Orquestador)                       │    │
-│  └──────────┬──────────────────────┬─────────────────────┬─────────────┘    │
-│             │                      │                     │                  │
-│   ┌─────────▼─────────┐  ┌─────────▼─────────┐  ┌────────▼────────┐         │
-│   │   TCPServer       │  │   Flask API       │  │ UDPBroadcaster  │         │
-│   │  (Puerto 5000)    │  │  (Puerto 8080)    │  │ (Puerto 5001)   │         │
-│   │                   │  │                   │  │                 │         │
-│   │ • Threading       │  │ • REST Endpoints  │  │ • Broadcast     │         │
-│   │ • Socket.listen() │  │ • JSON Response   │  │ • Telemetría    │         │
-│   │ • Multi-cliente   │  │ • CORS Enabled    │  │ • Cada 2s       │         │
-│   └───────────────────┘  └───────────────────┘  └─────────────────┘         │
-│             │                      │                      │                 │
-│             └──────────────────────┼──────────────────────┘                 │
-│                                    │                                        │
-│                          ┌─────────▼─────────┐                              │
-│                          │  DeviceManager    │                              │
-│                          │  (Lógica Central) │                              │
-│                          ├───────────────────┤                              │
-│                          │ • threading.Lock  │◄─── Thread-Safe              │
-│                          │ • devices: Dict   │                              │
-│                          │ • log: List       │                              │
-│                          │ • Timers (auto)   │                              │
-│                          └─────────┬─────────┘                              │
-│                                    │                                        │
-│                          ┌─────────▼─────────┐                              │
-│                          │   Device Model    │                              │
-│                          ├───────────────────┤                              │
-│                          │ • id              │                              │
-│                          │ • type (luz/      │                              │
-│                          │   enchufe/        │                              │
-│                          │   cortinas/       │                              │ 
-│                          │   termostato)     │                              │
-│                          │ • estado (ON/OFF/ │                              │
-│                          │   N/A)            │                              │
-│                          │ • auto_off (seg)  │                              │
-│                          │ • brightness      │                              │
-│                          │ • color           │                              │
-│                          │ • curtains        │                              │
-│                          │ • temperature     │                              │
-│                          │ • target_temp     │                              │
-│                          └───────────────────┘                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              INTERFACES DE USUARIO                              │
+├────────────────┬─────────────────┬─────────────────┬────────────────────────────┤
+│                │                 │                 │                            │
+│  Cliente CLI   │  Web Dashboard  │  Simulador 3D   │     UDP Listener           │
+│  (Terminal)    │  (Navegador)    │  (React+Three)  │    (Telemetría)            │
+│                │                 │                 │                            │
+│ ┌────────────┐ │ ┌─────────────┐ │ ┌─────────────┐ │    ┌─────────────┐         │
+│ │ Python     │ │ │ HTML/CSS/JS │ │ │ TypeScript  │ │    │ Python      │         │
+│ │ Socket TCP │ │ │ Fetch API   │ │ │ Fetch API   │ │    │ Socket UDP  │         │
+│ │            │ │ │ WebSpeech   │ │ │ Three.js    │ │    │             │         │
+│ └──────┬─────┘ │ └──────┬──────┘ │ └──────┬──────┘ │    └──────┬──────┘         │
+│        │       │        │        │        │        │           │                │
+│        │       │    ┌───┴───┐    │        │        │           │                │
+│        │       │    │Chatbot│    │        │        │           │                │
+│        │       │    │Jarvis │    │        │        │           │                │
+│        │       │    │🎤 🤖  │    │        │        │           │                │
+│        │       │    └───┬───┘    │        │        │           │                │
+└────────┼───────┴────────┼────────┴────────┼────────┴───────────┼────────────────┘
+         │                │                 │                    │
+         │ TCP :5000      │ HTTP :8080      │ HTTP :8080         │ UDP :5001
+         │                │ + /api/chat     │                    │ (broadcast)
+         ▼                ▼                 ▼                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     SERVIDOR CENTRAL (server_domotico.py)                       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│    ┌──────────────────────────────────────────────────────────────────────┐     │
+│    │                    DomoticServer (Orquestador)                       │     │
+│    │                         main thread                                  │     │
+│    └────────────┬─────────────────┬─────────────────┬─────────────────────┘     │
+│                 │                 │                 │                           │
+│    ┌────────────▼────────┐ ┌──────▼──────────┐ ┌────▼───────────────┐           │
+│    │    TCPServer        │ │   Flask API     │ │  UDPBroadcaster    │           │
+│    │   (Puerto 5000)     │ │  (Puerto 8080)  │ │   (Puerto 5001)    │           │
+│    │                     │ │                 │ │                    │           │
+│    │ • socket.listen()   │ │ • REST Endpoints│ │ • Broadcast c/2s   │           │
+│    │ • Multi-cliente     │ │ • /api/chat     │ │ • JSON telemetría  │           │
+│    │ • Threading         │ │ • Gemini AI     │ │ • SO_BROADCAST     │           │
+│    │ • Protocolo texto   │ │ • CORS enabled  │ │                    │           │
+│    └──────────┬──────────┘ └────────┬────────┘ └─────────┬──────────┘           │
+│               │                     │                    │                      │
+│               └─────────────────────┼────────────────────┘                      │
+│                                     │                                           │
+│                          ┌──────────▼──────────┐                                │
+│                          │   DeviceManager     │                                │
+│                          │  (Lógica Central)   │                                │
+│                          ├─────────────────────┤                                │
+│                          │ • threading.Lock    │◄── Thread-Safe                 │
+│                          │ • devices: Dict     │                                │
+│                          │ • log: List[str]    │                                │
+│                          │ • Timers auto-off   │                                │
+│                          └──────────┬──────────┘                                │
+│                                     │                                           │
+│                          ┌──────────▼──────────┐                                │
+│                          │   Device Model      │                                │
+│                          ├─────────────────────┤                                │
+│                          │ • id: str           │                                │
+│                          │ • type: str         │   Tipos:                       │
+│                          │ • estado: str       │   - luz                        │
+│                          │ • auto_off: int     │   - enchufe                    │
+│                          │ • brightness: int   │   - cortinas                   │
+│                          │ • color: str        │   - termostato                 │
+│                          │ • curtains: int     │                                │
+│                          │ • temperature: float│                                │
+│                          │ • target_temp: float│                                │
+│                          └─────────────────────┘                                │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Concurrencia y Threading
+## Componentes del Sistema
 
-### Hilos del Sistema
+### 1. DomoticServer (Orquestador)
 
+Clase principal que inicializa y coordina todos los componentes:
+
+```python
+class DomoticServer:
+    def __init__(self):
+        self.device_manager = DeviceManager()      # Lógica central
+        self.tcp_server = TCPServer(...)           # Comandos TCP
+        self.udp_broadcaster = UDPBroadcaster(...) # Telemetría
+        self.flask_app = create_api(...)           # REST + Gemini
+    
+    def start(self):
+        # Inicia todos los servicios en threads separados
+        tcp_thread.start()
+        udp_thread.start()
+        flask_thread.start()
 ```
-Main Thread (DomoticServer.start)
-├── TCPServer Thread
-│   └── Cliente Thread 1
-│   └── Cliente Thread 2
-│   └── Cliente Thread N...
-├── UDPBroadcaster Thread
-├── Flask API Thread
-└── Auto-off Timer Threads (dinámicos, por dispositivo)
-```
 
-### Thread-Safety con Locks
+### 2. DeviceManager (Lógica de Negocio)
 
-El `DeviceManager` utiliza `threading.Lock` para proteger el acceso concurrente:
+Gestiona el estado de todos los dispositivos de forma thread-safe:
 
 ```python
 class DeviceManager:
     def __init__(self):
-        self.lock = threading.Lock()  # Protección
-        self.devices: Dict[str, Device] = {}
-        self.log: List[str] = []
+        self.lock = threading.Lock()  # Protección concurrente
+        self.devices = {
+            'luz_salon': Device('luz_salon', 'luz'),
+            'enchufe_tv': Device('enchufe_tv', 'enchufe'),
+            'enchufe_calefactor': Device('enchufe_calefactor', 'enchufe'),
+            'cortinas': Device('cortinas', 'cortinas'),
+            'termostato': Device('termostato', 'termostato')
+        }
+        self.log = []  # Últimas 100 entradas
+```
+
+**Métodos principales:**
+
+| Método | Descripción |
+|--------|-------------|
+| `set_device_state(id, ON/OFF)` | Encender/Apagar dispositivo |
+| `set_brightness(id, 0-100)` | Ajustar brillo de luz |
+| `set_color(id, #RRGGBB)` | Cambiar color de luz |
+| `set_curtains(0-100)` | Posición de cortinas |
+| `set_temperature(16-30)` | Temperatura objetivo |
+| `set_auto_off(id, segundos)` | Programar auto-apagado |
+| `get_all_devices()` | Obtener estado de todos |
+
+### 3. TCPServer (Comandos)
+
+Servidor TCP multi-cliente para comandos de control:
+
+```python
+class TCPServer:
+    def _run(self):
+        self.socket.bind((host, 5000))
+        self.socket.listen(5)
+        
+        while running:
+            client, addr = self.socket.accept()
+            # Nuevo thread por cliente
+            threading.Thread(target=self._handle_client, args=(client,)).start()
+```
+
+### 4. Flask API (REST + Gemini)
+
+API REST con integración de chatbot IA:
+
+```python
+def create_api(device_manager):
+    app = Flask(__name__)
+    CORS(app)  # Permite requests desde navegador
     
-    def set_device_state(self, device_id: str, nuevo_estado: str) -> bool:
-        with self.lock:  # Solo 1 thread a la vez
-            # Código crítico aquí
-            device = self.devices.get(device_id)
-            # ...
+    @app.route('/api/status')
+    def get_status():
+        return jsonify(device_manager.get_all_devices())
+    
+    @app.route('/api/chat', methods=['POST'])
+    def chat_with_gemini():
+        # Procesa mensaje con IA y ejecuta acciones
+        ...
 ```
 
-**Protege contra:**
+### 5. UDPBroadcaster (Telemetría)
 
-- Race conditions al leer/escribir estado
-- Corrupción de datos compartidos
-- Conflictos entre timers y comandos manuales
-
----
-
-## Flujo de Datos - Control de Dispositivo
-
-### Secuencia: Cliente CLI → Servidor → DeviceManager
-
-```
-Cliente CLI                   TCPServer                   DeviceManager
-    │                            │                             │
-    │ 1. LOGIN admin admin123    │                             │
-    ├───────────────────────────►│                             │
-    │                            │ Verificar USUARIOS dict     │
-    │◄───────────────────────────┤                             │
-    │ OK LOGIN Bienvenido admin  │                             │
-    │                            │                             │
-    │ 2. SET luz_salon ON        │                             │
-    ├───────────────────────────►│                             │
-    │                            │ 3. set_device_state()       │
-    │                            ├────────────────────────────►│
-    │                            │                             │ Lock.acquire()
-    │                            │                             │ devices['luz_salon'].estado = 'ON'
-    │                            │                             │ Cancelar timer si existe
-    │                            │                             │ timestamp = now()
-    │                            │                             │ _add_log(...)
-    │                            │                             │ Lock.release()
-    │                            │◄────────────────────────────┤
-    │                            │ True (éxito)                │
-    │◄───────────────────────────┤                             │
-    │ OK SET luz_salon ON        │                             │
-```
-
----
-
-## Flujo de Autoapagado
-
-### Secuencia: Web Dashboard → API REST → Timer
-
-```
-Web Dashboard              Flask API              DeviceManager            Timer Thread
-    │                         │                         │                      │
-    │ POST /api/auto_off      │                         │                      │
-    │ {id, seconds:30}        │                         │                      │
-    ├────────────────────────►│                         │                      │
-    │                         │ set_auto_off()          │                      │
-    │                         ├────────────────────────►│                      │
-    │                         │                         │ Lock.acquire()       │
-    │                         │                         │ Cancelar timer prev  │
-    │                         │                         │ device.auto_off = 30 │
-    │                         │                         │ timer = Timer(30)    │
-    │                         │                         │ timer.start() ──────►│
-    │                         │                         │ _add_log()           │
-    │                         │                         │ Lock.release()       │
-    │                         │◄────────────────────────┤                      │
-    │◄────────────────────────┤                         │                      │
-    │ {success: true}         │                         │                      │
-    │                         │                         │                      │
-    │        [Espera 30 segundos...]                    │                      │
-    │                         │                         │                      │
-    │                         │                         │  Timer expira        │
-    │                         │                         │◄─────────────────────┤
-    │                         │                         │ _auto_off_callback() │
-    │                         │                         │ Lock.acquire()       │
-    │                         │                         │ device.estado = 'OFF'│
-    │                         │                         │ device.auto_off = 0  │
-    │                         │                         │ _add_log()           │
-    │                         │                         │ Lock.release()       │
-```
-
----
-
-## Broadcast UDP - Telemetría
-
-### Loop del UDPBroadcaster
+Emisor de estado broadcast cada 2 segundos:
 
 ```python
 class UDPBroadcaster:
     def _run(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock = socket.socket(AF_INET, SOCK_DGRAM)
+        sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         
-        while self.running:
-            # 1. Obtener estado (thread-safe)
-            devices = self.device_manager.get_all_devices()
-            
-            # 2. Serializar a JSON
+        while running:
             payload = json.dumps({
                 'timestamp': datetime.now().isoformat(),
-                'devices': devices
+                'devices': device_manager.get_all_devices()
             })
-            
-            # 3. Broadcast a puerto 5001
-            sock.sendto(payload.encode('utf-8'), ('<broadcast>', 5001))
-            
-            # 4. Esperar 2 segundos
+            sock.sendto(payload.encode(), ('<broadcast>', 5001))
             time.sleep(2)
-```
-
-**Características:**
-
-- Unidireccional (solo envío)
-- No requiere conexión
-- Múltiples listeners pueden recibir simultáneamente
-- Útil para monitorización pasiva
-
----
-
-## Protocolo TCP Personalizado
-
-### Formato de Mensajes
-
-Todos los comandos terminan en `\n` (newline):
-
-```bash
-Cliente → Servidor:  "COMANDO param1 param2\n"
-Servidor → Cliente:  "OK datos\n" o "ERROR mensaje\n"
-```
-
-### Parsing en TCPServer
-
-```python
-def _process_command(self, command: str, authenticated: bool, username: str) -> str:
-    parts = command.split()
-    cmd = parts[0].upper()
-    
-    if cmd == "LOGIN":
-        user, password = parts[1], parts[2]
-        if user in USUARIOS and USUARIOS[user] == password:
-            return "OK LOGIN Bienvenido {user}"
-        return "ERROR LOGIN: Credenciales inválidas"
-    
-    if cmd == "SET":
-        if not authenticated:
-            return "ERROR SET: Requiere autenticación"
-        device_id = parts[1]
-        subcommand = parts[2].upper()
-        
-        # Subcomandos de SET
-        if subcommand == 'ON':
-            if self.device_manager.set_device_state(device_id, 'ON'):
-                return f"OK SET {device_id} ON"
-        elif subcommand == 'OFF':
-            if self.device_manager.set_device_state(device_id, 'OFF'):
-                return f"OK SET {device_id} OFF"
-        elif subcommand == 'BRIGHTNESS':
-            value = int(parts[3])  # 0-100
-            if self.device_manager.set_brightness(device_id, value):
-                return f"OK SET {device_id} BRIGHTNESS {value}"
-        elif subcommand == 'COLOR':
-            color = parts[3]  # #RRGGBB
-            if self.device_manager.set_color(device_id, color):
-                return f"OK SET {device_id} COLOR {color}"
-        elif subcommand == 'LEVEL':
-            value = int(parts[3])  # 0-100 (cortinas)
-            if self.device_manager.set_curtains(device_id, value):
-                return f"OK SET {device_id} LEVEL {value}"
-        elif subcommand == 'TEMP':
-            value = int(parts[3])  # 16-30 (termostato)
-            if self.device_manager.set_temperature(device_id, value):
-                return f"OK SET {device_id} TEMP {value}"
-        
-        return f"ERROR SET: Subcomando o dispositivo no válido"
-    # ...
-```
-
-### Subcomandos SET
-
-| Subcomando | Sintaxis | Dispositivos | Descripción |
-|------------|----------|--------------|-------------|
-| `ON` | `SET <id> ON` | luz, enchufe | Encender dispositivo |
-| `OFF` | `SET <id> OFF` | luz, enchufe | Apagar dispositivo |
-| `BRIGHTNESS` | `SET <id> BRIGHTNESS <0-100>` | luz | Ajustar brillo |
-| `COLOR` | `SET <id> COLOR <#RRGGBB>` | luz | Cambiar color |
-| `LEVEL` | `SET <id> LEVEL <0-100>` | cortinas | Posición cortinas |
-| `TEMP` | `SET <id> TEMP <16-30>` | termostato | Temperatura objetivo |
-
----
-
-## API REST - Diseño
-
-### Endpoints y Lógica
-
-```python
-@app.route('/api/status', methods=['GET'])
-def get_status():
-    """Thread-safe: device_manager usa Lock internamente"""
-    devices = device_manager.get_all_devices()
-    return jsonify({
-        'success': True,
-        'timestamp': datetime.now().isoformat(),
-        'devices': devices,
-        'total': len(devices)
-    })
-
-@app.route('/api/control', methods=['POST'])
-def control():
-    """POST con JSON body - Encender/Apagar"""
-    data = request.get_json()
-    device_id = data['id']
-    action = data['action'].upper()
-    
-    if device_manager.set_device_state(device_id, action):
-        return jsonify({
-            'success': True,
-            'device_id': device_id,
-            'new_state': action
-        })
-    return jsonify({'success': False, 'error': 'Dispositivo no encontrado'}), 404
-
-@app.route('/api/brightness', methods=['POST'])
-def set_brightness():
-    """Ajustar brillo de luces (0-100)"""
-    data = request.get_json()
-    device_id = data['id']
-    brightness = int(data['brightness'])
-    device_manager.set_brightness(device_id, brightness)
-    return jsonify({'success': True, 'brightness': brightness})
-
-@app.route('/api/color', methods=['POST'])
-def set_color():
-    """Cambiar color de luces (#RRGGBB)"""
-    data = request.get_json()
-    device_id = data['id']
-    color = data['color']
-    device_manager.set_color(device_id, color)
-    return jsonify({'success': True, 'color': color})
-
-@app.route('/api/curtains', methods=['POST'])
-def set_curtains():
-    """Posición de cortinas (0-100%)"""
-    data = request.get_json()
-    device_id = data.get('id', 'cortinas')
-    position = int(data['position'])
-    device_manager.set_curtains(device_id, position)
-    return jsonify({'success': True, 'position': position})
-
-@app.route('/api/temperature', methods=['POST'])
-def set_temperature():
-    """Temperatura objetivo del termostato (16-30°C)"""
-    data = request.get_json()
-    device_id = data.get('id', 'termostato')
-    temperature = int(data['temperature'])
-    device_manager.set_temperature(device_id, temperature)
-    return jsonify({'success': True, 'temperature': temperature})
-```
-
-### Tabla de Endpoints REST
-
-| Endpoint | Método | Body | Descripción |
-|----------|--------|------|-------------|
-| `/api/status` | GET | - | Estado de todos los dispositivos |
-| `/api/control` | POST | `{id, action}` | Encender/Apagar |
-| `/api/brightness` | POST | `{id, brightness}` | Brillo 0-100 |
-| `/api/color` | POST | `{id, color}` | Color #RRGGBB |
-| `/api/curtains` | POST | `{id?, position}` | Cortinas 0-100% |
-| `/api/temperature` | POST | `{id?, temperature}` | Temp 16-30°C |
-| `/api/auto_off` | POST | `{id, segundos}` | Configurar auto-off |
-| `/api/log` | GET | - | Últimos 100 eventos |
-
-### CORS
-
-Flask-CORS habilitado para permitir requests desde `file://` (HTML local):
-
-```python
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)  # Permite todas las origins (solo desarrollo)
 ```
 
 ---
@@ -392,26 +208,26 @@ CORS(app)  # Permite todas las origins (solo desarrollo)
 
 ```python
 class Device:
-    def __init__(self, device_id: str, device_type: str, estado: str = 'OFF'):
+    def __init__(self, device_id: str, device_type: str):
         self.id = device_id              # Identificador único
         self.type = device_type          # 'luz', 'enchufe', 'cortinas', 'termostato'
         
-        # Estado y auto_off solo para dispositivos que se encienden/apagan
+        # Estado según tipo
         if device_type in ['cortinas', 'termostato']:
-            self.estado = 'N/A'          # Cortinas y termostato no tienen estado ON/OFF
-            self.auto_off = 0            # No aplica auto-off
+            self.estado = 'N/A'          # No tienen ON/OFF
+            self.auto_off = 0            # No aplica
         else:
-            self.estado = estado         # 'ON' o 'OFF'
-            self.auto_off = 0            # Segundos (0 = desactivado)
+            self.estado = 'OFF'          # ON/OFF
+            self.auto_off = 0            # Segundos para auto-apagado
         
         self.ultimo_cambio = datetime.now().isoformat()
-        self.auto_off_timer = None       # threading.Timer o None (solo luces/enchufes)
+        self.auto_off_timer = None       # threading.Timer activo
         
         # Parámetros específicos por tipo
-        self.brightness = 40 if device_type == 'luz' else 0       # Solo luces
-        self.color = '#ffffff' if device_type == 'luz' else '#000000'  # Solo luces
-        self.curtains = 50 if device_type == 'cortinas' else 0    # Solo cortinas
-        self.temperature = 19 if device_type == 'termostato' else 0    # Solo termostato
+        self.brightness = 40 if device_type == 'luz' else 0
+        self.color = '#ffffff' if device_type == 'luz' else '#000000'
+        self.curtains = 50 if device_type == 'cortinas' else 0
+        self.temperature = 19 if device_type == 'termostato' else 0
         self.target_temperature = 21 if device_type == 'termostato' else 0
 ```
 
@@ -419,257 +235,579 @@ class Device:
 
 | Tipo | Estado | Auto-Off | Parámetros Específicos |
 |------|--------|----------|------------------------|
-| `luz` | ON/OFF | Sí | brightness (0-100), color (#RRGGBB) |
-| `enchufe` | ON/OFF | Sí | - |
-| `cortinas` | N/A | No | curtains (0-100% posición) |
-| `termostato` | N/A | No | temperature, target_temperature (16-30°C) |
+| `luz` | ON/OFF | ✅ Sí | brightness (0-100), color (#RRGGBB) |
+| `enchufe` | ON/OFF | ✅ Sí | - |
+| `cortinas` | N/A | ❌ No | curtains (0-100% posición) |
+| `termostato` | N/A | ❌ No | temperature, target_temperature |
 
-### Estado Compartido (DeviceManager)
+### Dispositivos Registrados
 
-```python
-class DeviceManager:
-    def __init__(self):
-        self.devices: Dict[str, Device] = {
-            'luz_salon': Device('luz_salon', 'luz'),
-            'enchufe_tv': Device('enchufe_tv', 'enchufe'),
-            'enchufe_calefactor': Device('enchufe_calefactor', 'enchufe'),
-            'cortinas': Device('cortinas', 'cortinas'),
-            'termostato': Device('termostato', 'termostato')
-        }
-        self.log: List[str] = []         # Últimas 100 entradas
-        self.lock = threading.Lock()     # Protección thread-safe
+| ID | Tipo | Descripción |
+|----|------|-------------|
+| `luz_salon` | luz | Luz principal del salón |
+| `enchufe_tv` | enchufe | Smart plug para televisor |
+| `enchufe_calefactor` | enchufe | Smart plug para calefactor |
+| `cortinas` | cortinas | Sistema de cortinas motorizadas |
+| `termostato` | termostato | Control de climatización |
+
+---
+
+## Protocolo TCP
+
+### Formato de Mensajes
+
+```
+Cliente → Servidor:  "COMANDO param1 param2\n"
+Servidor → Cliente:  "OK resultado\n" o "ERROR mensaje\n"
+```
+
+### Tabla de Comandos
+
+| Comando | Sintaxis | Auth | Descripción |
+|---------|----------|:----:|-------------|
+| `LOGIN` | `LOGIN <user> <pass>` | ❌ | Autenticación de usuario |
+| `LIST` | `LIST` | ❌ | Listar todos los dispositivos |
+| `STATUS` | `STATUS <device_id>` | ❌ | Estado de un dispositivo |
+| `SET` | `SET <id> <subcomando> [valor]` | ✅ | Controlar dispositivo |
+| `AUTO_OFF` | `AUTO_OFF <id> <segundos>` | ✅ | Programar auto-apagado |
+| `LOG` | `LOG` | ❌ | Ver historial de eventos |
+| `EXIT` | `EXIT` | ❌ | Cerrar conexión |
+
+### Subcomandos SET
+
+| Subcomando | Sintaxis | Dispositivos | Rango |
+|------------|----------|--------------|-------|
+| `ON` | `SET <id> ON` | luz, enchufe | - |
+| `OFF` | `SET <id> OFF` | luz, enchufe | - |
+| `BRIGHTNESS` | `SET <id> BRIGHTNESS <valor>` | luz | 0-100 |
+| `COLOR` | `SET <id> COLOR <hex>` | luz | #000000-#FFFFFF |
+| `LEVEL` | `SET cortinas LEVEL <valor>` | cortinas | 0-100 |
+| `TEMP` | `SET termostato TEMP <valor>` | termostato | 16-30 |
+
+### Ejemplo de Sesión Completa
+
+```text
+Conexión establecida...
+< SERVIDOR DOMOTICO v1.0
+< Comandos: LOGIN, LIST, STATUS, SET, AUTO_OFF, LOG, EXIT
+
+> LOGIN admin admin123
+< OK LOGIN Bienvenido admin
+
+> LIST
+< OK 5 luz_salon,OFF,0,40,#ffffff,0,0,0;enchufe_tv,OFF,0,0,#000000,0,0,0;...
+
+> SET luz_salon ON
+< OK SET luz_salon ON
+
+> SET luz_salon BRIGHTNESS 75
+< OK SET luz_salon BRIGHTNESS 75
+
+> SET luz_salon COLOR #ff6600
+< OK SET luz_salon COLOR #ff6600
+
+> SET cortinas LEVEL 80
+< OK SET cortinas LEVEL 80
+
+> SET termostato TEMP 22
+< OK SET termostato TEMP 22.0
+
+> AUTO_OFF luz_salon 60
+< OK AUTO_OFF luz_salon 60
+
+> STATUS luz_salon
+< OK STATUS luz_salon,ON,60,75,#ff6600,0,0,0
+
+> LOG
+< OK LOG [2025-11-27 10:30:00] luz_salon: Estado cambiado a ON; ...
+
+> EXIT
+< OK EXIT Hasta luego!
+```
+
+### Códigos de Error
+
+| Error | Causa |
+|-------|-------|
+| `ERROR LOGIN: Credenciales inválidas` | Usuario o contraseña incorrectos |
+| `ERROR SET: Requiere autenticación` | Comando sin LOGIN previo |
+| `ERROR SET: Dispositivo no encontrado` | ID de dispositivo inválido |
+| `ERROR SET: Subcomando no válido` | Subcomando no reconocido |
+| `ERROR: Comando no reconocido` | Comando desconocido |
+
+---
+
+## API REST
+
+### Endpoints Completos
+
+| Método | Endpoint | Body JSON | Respuesta |
+|--------|----------|-----------|-----------|
+| GET | `/api/status` | - | Lista de todos los dispositivos |
+| GET | `/api/device/<id>` | - | Estado de un dispositivo |
+| POST | `/api/control` | `{id, action}` | Resultado ON/OFF |
+| POST | `/api/brightness` | `{id, brightness}` | Confirmación |
+| POST | `/api/color` | `{id, color}` | Confirmación |
+| POST | `/api/curtains` | `{position}` | Confirmación |
+| POST | `/api/temperature` | `{temperature}` | Confirmación |
+| POST | `/api/auto_off` | `{id, seconds}` | Confirmación |
+| POST | `/api/chat` | `{message}` | Respuesta IA + acciones |
+| GET | `/api/log` | - | Historial de eventos |
+
+### Ejemplos de Peticiones y Respuestas
+
+#### GET /api/status
+
+**Respuesta:**
+
+```json
+{
+  "success": true,
+  "timestamp": "2025-11-27T10:30:00.123456",
+  "total": 5,
+  "devices": [
+    {
+      "id": "luz_salon",
+      "type": "luz",
+      "estado": "ON",
+      "auto_off": 0,
+      "brightness": 75,
+      "color": "#ff6600",
+      "curtains": 0,
+      "temperature": 0,
+      "target_temperature": 0,
+      "ultimo_cambio": "2025-11-27T10:25:00.000000"
+    },
+    ...
+  ]
+}
+```
+
+#### POST /api/control
+
+**Request:**
+
+```json
+{
+  "id": "luz_salon",
+  "action": "ON"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "device_id": "luz_salon",
+  "new_state": "ON"
+}
+```
+
+#### POST /api/chat
+
+**Request:**
+
+```json
+{
+  "message": "Activa el modo cine"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "response": "Modo cine activado: luces tenues azules, cortinas cerradas y TV encendida.",
+  "actions": [
+    "luz_salon -> Brillo 10%",
+    "luz_salon -> Color #0000ff",
+    "Cortinas -> 0%",
+    "enchufe_tv -> ON"
+  ]
+}
 ```
 
 ---
 
-## Gestión de Timers
+## Chatbot IA Gemini
 
-### Creación de Timer de Autoapagado
+### Arquitectura del Chatbot
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    CHATBOT JARVIS                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐     │
+│  │  Dashboard  │      │  Flask API  │      │   Gemini    │     │
+│  │  (Browser)  │─────►│  /api/chat  │─────►│   1.5 Flash │     │
+│  │             │      │             │      │             │     │
+│  │ 🎤 Voz      │      │             │      │             │     │
+│  │ ⌨️ Texto    │      └──────┬──────┘      └──────┬──────┘     │
+│  └─────────────┘             │                    │             │
+│                              ▼                    │             │
+│                    ┌─────────────────┐            │             │
+│                    │  Contexto       │            │             │
+│                    │  Estado actual  │◄───────────┘             │
+│                    │  de dispositivos│   Respuesta JSON         │
+│                    └────────┬────────┘   con acciones           │
+│                             │                                   │
+│                             ▼                                   │
+│                    ┌─────────────────┐                          │
+│                    │ DeviceManager   │                          │
+│                    │ Ejecuta acciones│                          │
+│                    └─────────────────┘                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Flujo de Procesamiento
+
+1. **Usuario** envía mensaje (texto o voz)
+2. **Dashboard** captura con Web Speech API (si es voz)
+3. **POST /api/chat** con el mensaje
+4. **Servidor** construye contexto con estado actual
+5. **Gemini** procesa y genera respuesta JSON
+6. **Servidor** parsea acciones y las ejecuta
+7. **Respuesta** con texto + lista de acciones ejecutadas
+
+### Prompt del Sistema
 
 ```python
-def set_auto_off(self, device_id: str, segundos: int) -> bool:
+context = f"""
+Estado actual de la habitación:
+- Luz del salón: {estado}, Brillo: {brightness}%, Color: {color}
+- TV: {tv_estado}
+- Calefactor: {calef_estado}
+- Cortinas: {curtains}% abiertas
+- Temperatura actual: {temp}°C, Objetivo: {target_temp}°C
+
+Eres Jarvis, un asistente de domótica inteligente. Responde de forma breve.
+Cuando el usuario pida controlar algo, responde con JSON:
+{{"actions": [...], "response": "mensaje"}}
+
+Dispositivos y acciones disponibles:
+- luz_salon: ON, OFF, BRIGHTNESS (0-100), COLOR (#RRGGBB)
+- enchufe_tv: ON, OFF
+- enchufe_calefactor: ON, OFF  
+- cortinas: LEVEL (0-100)
+- termostato: TEMP (16-30)
+"""
+```
+
+### Comandos Especiales Reconocidos
+
+| Comando | Acciones Ejecutadas |
+|---------|---------------------|
+| "Modo cine" | Brillo 10%, Color azul, Cortinas 0%, TV ON |
+| "Hace frío" | Temperatura +3°C, Calefactor ON |
+| "Buenos días" | Luz ON, Cortinas 100%, Brillo 80% |
+| "Buenas noches" | Todo OFF, Cortinas 0% |
+
+### Reconocimiento de Voz
+
+```javascript
+// Web Speech API (Chrome/Edge)
+const recognition = new webkitSpeechRecognition();
+recognition.lang = 'es-ES';
+recognition.continuous = false;
+
+recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    sendChatMessage(transcript);
+};
+```
+
+---
+
+## Broadcast UDP
+
+### Características
+
+- **Puerto**: 5001
+- **Intervalo**: Cada 2 segundos
+- **Formato**: JSON
+- **Dirección**: Broadcast (`<broadcast>`)
+- **Protocolo**: UDP (sin conexión)
+
+### Estructura del Paquete
+
+```json
+{
+  "timestamp": "2025-11-27T10:30:00.123456",
+  "devices": [
+    {
+      "id": "luz_salon",
+      "type": "luz",
+      "estado": "ON",
+      "auto_off": 0,
+      "brightness": 75,
+      "color": "#ff6600",
+      "curtains": 0,
+      "temperature": 0,
+      "target_temperature": 0,
+      "ultimo_cambio": "2025-11-27T10:25:00.000000"
+    },
+    ...
+  ]
+}
+```
+
+### Receptor UDP (udp_listener.py)
+
+```python
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+sock.bind(('', 5001))
+
+while True:
+    data, addr = sock.recvfrom(4096)
+    telemetry = json.loads(data.decode())
+    print_table(telemetry['devices'])
+```
+
+---
+
+## Concurrencia y Threading
+
+### Mapa de Threads
+
+```text
+Main Thread (DomoticServer.start)
+│
+├── TCPServer Thread
+│   ├── Cliente Thread 1 (handle_client)
+│   ├── Cliente Thread 2 (handle_client)
+│   └── Cliente Thread N...
+│
+├── UDPBroadcaster Thread (broadcast loop)
+│
+├── Flask API Thread (werkzeug server)
+│
+└── Auto-off Timer Threads (dinámicos)
+    ├── Timer luz_salon (60s)
+    └── Timer enchufe_tv (30s)
+```
+
+### Protección con Lock
+
+```python
+class DeviceManager:
+    def __init__(self):
+        self.lock = threading.Lock()
+    
+    def set_device_state(self, device_id, new_state):
+        with self.lock:  # Exclusión mutua
+            device = self.devices.get(device_id)
+            device.estado = new_state
+            # Operación atómica protegida
+```
+
+**Protege contra:**
+- Race conditions
+- Corrupción de datos
+- Conflictos timer vs comando manual
+
+### Gestión de Timers
+
+```python
+def set_auto_off(self, device_id, segundos):
     with self.lock:
         device = self.devices.get(device_id)
         
-        # Cancelar timer anterior si existe
+        # Cancelar timer anterior
         if device.auto_off_timer:
             device.auto_off_timer.cancel()
         
         device.auto_off = segundos
         
         if segundos > 0:
-            # Crear nuevo timer (daemon thread)
-            device.auto_off_timer = threading.Timer(
-                segundos, 
-                self._auto_off_callback,  # Función a ejecutar
+            timer = threading.Timer(
+                segundos,
+                self._auto_off_callback,
                 args=[device_id]
             )
-            device.auto_off_timer.daemon = True
-            device.auto_off_timer.start()
-```
-
-### Callback del Timer
-
-```python
-def _auto_off_callback(self, device_id: str):
-    """Ejecutado en thread separado cuando expira el timer"""
-    with self.lock:  # Thread-safe
-        device = self.devices.get(device_id)
-        if device and device.estado == 'ON':
-            device.estado = 'OFF'
-            device.ultimo_cambio = datetime.now().isoformat()
-            device.auto_off = 0
-            device.auto_off_timer = None
-            self._add_log(device_id, "Auto-apagado ejecutado")
-```
-
-**Importante:** El timer se cancela si:
-
-- Se cambia el estado manualmente (SET OFF/ON)
-- Se configura un nuevo autoapagado
-- El dispositivo es controlado antes de que expire
-
----
-
-## Logging de Eventos
-
-### Formato de Entradas
-
-```bash
-[2025-11-19 14:30:00] luz_salon: Estado cambiado a ON
-[2025-11-19 14:30:15] luz_salon: Auto-apagado programado en 30s
-[2025-11-19 14:30:45] luz_salon: Auto-apagado ejecutado
-```
-
-### Implementación
-
-```python
-def _add_log(self, device_id: str, mensaje: str):
-    """Thread-safe: debe llamarse dentro de with self.lock"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"[{timestamp}] {device_id}: {mensaje}"
-    self.log.append(log_entry)
-    
-    # Limitar a últimas 100 entradas
-    if len(self.log) > 100:
-        self.log = self.log[-100:]
-    
-    print(f"LOG: {log_entry}")  # Debug en consola del servidor
+            timer.daemon = True  # No bloquea cierre
+            timer.start()
+            device.auto_off_timer = timer
 ```
 
 ---
 
-## Gestión de Conexiones TCP
+## Flujos de Datos
 
-### Aceptar Múltiples Clientes
+### Flujo 1: Control desde CLI
 
-```python
-class TCPServer:
-    def _run(self):
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(5)  # Cola de hasta 5 conexiones
-        
-        while self.running:
-            client_socket, address = self.server_socket.accept()
-            
-            # Nuevo thread por cada cliente
-            client_thread = threading.Thread(
-                target=self._handle_client,
-                args=(client_socket, address),
-                daemon=True  # Se cierra cuando main thread termina
-            )
-            client_thread.start()
+```text
+Cliente CLI              TCPServer              DeviceManager
+    │                        │                       │
+    │ SET luz_salon ON       │                       │
+    ├───────────────────────►│                       │
+    │                        │ set_device_state()    │
+    │                        ├──────────────────────►│
+    │                        │                       │ Lock.acquire()
+    │                        │                       │ device.estado = 'ON'
+    │                        │                       │ timestamp = now()
+    │                        │                       │ _add_log(...)
+    │                        │                       │ Lock.release()
+    │                        │◄──────────────────────┤
+    │ OK SET luz_salon ON    │                       │
+    │◄───────────────────────┤                       │
 ```
 
-### Ciclo de Vida de Conexión
+### Flujo 2: Control desde Dashboard Web
 
-```python
-def _handle_client(self, client_socket, address):
-    authenticated = False
-    username = None
-    
-    try:
-        client_socket.send(b"SERVIDOR DOMOTICO v1.0\n...")
-        
-        while True:
-            data = client_socket.recv(1024).decode('utf-8').strip()
-            if not data:
-                break  # Cliente desconectado
-            
-            response = self._process_command(data, authenticated, username)
-            
-            if response.startswith("OK LOGIN"):
-                authenticated = True
-                username = data.split()[1]
-            
-            client_socket.send((response + "\n").encode('utf-8'))
-            
-            if data.upper() == "EXIT":
-                break
-    finally:
-        client_socket.close()
+```text
+Dashboard              Flask API              DeviceManager
+    │                      │                       │
+    │ POST /api/control    │                       │
+    │ {id, action: ON}     │                       │
+    ├─────────────────────►│                       │
+    │                      │ set_device_state()    │
+    │                      ├──────────────────────►│
+    │                      │                       │ (mismo proceso)
+    │                      │◄──────────────────────┤
+    │ {success: true}      │                       │
+    │◄─────────────────────┤                       │
+    │                      │                       │
+    │ GET /api/status      │                       │
+    ├─────────────────────►│ get_all_devices()     │
+    │                      ├──────────────────────►│
+    │ [dispositivos]       │◄──────────────────────┤
+    │◄─────────────────────┤                       │
+```
+
+### Flujo 3: Chatbot con IA
+
+```text
+Dashboard          Flask /chat          Gemini AI         DeviceManager
+    │                  │                    │                   │
+    │ "Modo cine"      │                    │                   │
+    ├─────────────────►│                    │                   │
+    │                  │ get_all_devices()  │                   │
+    │                  ├────────────────────┼──────────────────►│
+    │                  │◄───────────────────┼───────────────────┤
+    │                  │                    │                   │
+    │                  │ generate_content() │                   │
+    │                  ├───────────────────►│                   │
+    │                  │ JSON con acciones  │                   │
+    │                  │◄───────────────────┤                   │
+    │                  │                    │                   │
+    │                  │ Ejecutar acciones  │                   │
+    │                  ├────────────────────┼──────────────────►│
+    │                  │◄───────────────────┼───────────────────┤
+    │                  │                    │                   │
+    │ {response, actions}                   │                   │
+    │◄─────────────────┤                    │                   │
+```
+
+### Flujo 4: Auto-apagado
+
+```text
+Cliente              DeviceManager             Timer Thread
+    │                      │                        │
+    │ AUTO_OFF luz 30      │                        │
+    ├─────────────────────►│                        │
+    │                      │ Timer(30s).start() ───►│
+    │ OK                   │                        │
+    │◄─────────────────────┤                        │
+    │                      │                        │
+    │        [30 segundos después...]               │
+    │                      │                        │
+    │                      │◄─────── callback() ────┤
+    │                      │ Lock.acquire()         │
+    │                      │ estado = 'OFF'         │
+    │                      │ auto_off = 0           │
+    │                      │ _add_log("Auto-off")   │
+    │                      │ Lock.release()         │
 ```
 
 ---
 
-## Gemelo Digital Web - Arquitectura Frontend
+## Seguridad
 
-### Actualización Automática
+### Limitaciones Actuales (Desarrollo)
 
-```javascript
-const UPDATE_INTERVAL = 5000; // 5 segundos
+| Aspecto | Estado | Riesgo |
+|---------|--------|--------|
+| Autenticación | Hardcoded | ⚠️ Alto |
+| Contraseñas | Texto plano | ⚠️ Alto |
+| Cifrado TCP | Ninguno | ⚠️ Alto |
+| HTTPS | No | ⚠️ Medio |
+| CORS | Permisivo (*) | ⚠️ Medio |
+| Rate Limiting | No | ⚠️ Bajo |
 
-function startAutoUpdate() {
-    loadDevices();  // Carga inicial
-    
-    updateTimer = setInterval(() => {
-        loadDevices();  // Recargar cada 5s
-    }, UPDATE_INTERVAL);
-}
+### Mejoras para Producción
 
-async function loadDevices() {
-    const response = await fetch(`${API_BASE_URL}/status`);
-    const data = await response.json();
-    
-    if (data.success) {
-        renderDevices(data.devices);  // Actualizar DOM
-        updateLastUpdateTime();
-    }
-}
-```
+```python
+# 1. Hashing de contraseñas
+import bcrypt
+hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-### Control Bidireccional
+# 2. JWT para sesiones
+import jwt
+token = jwt.encode({'user': username, 'exp': datetime.utcnow() + timedelta(hours=1)}, SECRET_KEY)
 
-```javascript
-async function controlDevice(deviceId, action) {
-    const response = await fetch(`${API_BASE_URL}/control`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id: deviceId, action: action })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-        showNotification(`Dispositivo ${action}`, 'success');
-        loadDevices();  // Refrescar UI
-    }
-}
+# 3. HTTPS
+# Usar nginx como reverse proxy con certificado SSL
+
+# 4. Rate limiting
+from flask_limiter import Limiter
+limiter = Limiter(app, key_func=get_remote_address)
+
+@app.route('/api/control')
+@limiter.limit("10 per minute")
+def control():
+    ...
 ```
 
 ---
 
 ## Puertos y Servicios
 
-| Puerto | Protocolo | Servicio | Uso |
-|--------|-----------|----------|-----|
-| 5000 | TCP | TCPServer | Comandos de control (cliente CLI) |
-| 5001 | UDP | UDPBroadcaster | Telemetría broadcast (monitorización) |
-| 8080 | HTTP (TCP) | Flask API | REST API (gemelo digital web) |
+| Puerto | Protocolo | Servicio | Descripción |
+|--------|-----------|----------|-------------|
+| 5000 | TCP | TCPServer | Comandos de control |
+| 5001 | UDP | Broadcaster | Telemetría (broadcast) |
+| 8080 | HTTP | Flask API | REST + Chatbot |
+| 3000 | HTTP | Vite | Simulador 3D (desarrollo) |
 
 ---
 
-## Seguridad - Limitaciones Conocidas
+## Patrones de Diseño
 
-⚠️ **Sistema educativo - NO usar en producción sin mejoras:**
-
-1. **Autenticación básica**
-   - Contraseñas en texto plano en código
-   - Sin hashing (bcrypt/argon2)
-   - Sin tokens de sesión
-
-2. **Sin cifrado**
-   - TCP sin TLS/SSL
-   - HTTP sin HTTPS
-   - Passwords viajan en claro
-
-3. **Sin persistencia**
-   - Estado volátil (se pierde al reiniciar)
-   - No hay base de datos
-
-4. **CORS permisivo**
-   - Permite todas las origins (desarrollo)
-
-**Para producción se necesitaría:**
-
-- JWT para autenticación
-- HTTPS/TLS para cifrado
-- Base de datos (SQLite/PostgreSQL)
-- Hashing de contraseñas
-- Rate limiting
-- Input validation estricta
-- Logging de auditoría
+| Patrón | Implementación |
+|--------|----------------|
+| **Singleton** | DeviceManager compartido |
+| **Factory** | `create_api()` para Flask |
+| **Observer** | UDP broadcast |
+| **Thread Pool** | Clientes TCP concurrentes |
+| **MVC** | Model (Device) / View (Web) / Controller (Manager) |
+| **Mediator** | DomoticServer coordina componentes |
 
 ---
 
-## Patrones de Diseño Utilizados
+## Testing
 
-1. **Singleton** - DeviceManager (compartido entre componentes)
-2. **Factory** - `create_api()` para crear app Flask
-3. **Observer** - UDP broadcast (broadcasting pattern)
-4. **Thread Pool** - Múltiples clientes TCP concurrentes
-5. **MVC** - Separación Model (Device) / View (Web/CLI) / Controller (Managers)
+### Suite de Pruebas (`test_sistema.py`)
+
+```python
+# Ejecutar:
+python scripts/test_sistema.py
+```
+
+**Tests incluidos:**
+
+| Categoría | Tests |
+|-----------|-------|
+| Conexión TCP | Conexión, desconexión, timeout |
+| Comandos | LOGIN, LIST, STATUS, SET, AUTO_OFF, LOG |
+| Autenticación | Login válido/inválido, protección comandos |
+| API REST | Todos los endpoints |
+| Concurrencia | Múltiples clientes simultáneos |
+| Auto-off | Creación, cancelación, ejecución |
 
 ---
 
@@ -677,32 +815,21 @@ async function controlDevice(deviceId, action) {
 
 ### Limitaciones Actuales
 
-- Dispositivos hardcoded (5 fijos: 1 luz, 2 enchufes, cortinas, termostato)
-- Sin base de datos
-- Estado en memoria (no distribuido)
-- Single server (no cluster)
+- 5 dispositivos fijos (hardcoded)
+- Estado solo en memoria
+- Servidor único (no distribuido)
 
 ### Mejoras Posibles
 
-- Configuración dinámica de dispositivos (JSON/YAML)
-- Persistencia con SQLAlchemy
-- Redis para caché distribuida
-- Load balancer para múltiples instancias
-- Message queue (RabbitMQ/Kafka) para escalado horizontal
+| Mejora | Tecnología |
+|--------|------------|
+| Persistencia | SQLite / PostgreSQL |
+| Configuración dinámica | JSON/YAML config file |
+| Caché distribuida | Redis |
+| Múltiples instancias | Load balancer + Redis |
+| Mensajería | RabbitMQ / Kafka |
+| Containerización | Docker + Docker Compose |
 
 ---
 
-## Testing
-
-Ver `scripts/test_sistema.py` para suite completa de tests que valida:
-
-- Conexiones TCP
-- Todos los comandos del protocolo
-- Autenticación
-- API REST endpoints
-- Concurrencia
-- Funcionalidad de autoapagado
-
----
-
-## Fin de la documentación técnica
+## Fin de la Documentación Técnica
