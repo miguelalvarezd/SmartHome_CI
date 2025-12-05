@@ -49,8 +49,34 @@ Sistema completo de domótica basado en arquitectura Cliente-Servidor con capaci
 
 ### 1️⃣ Instalación (solo primera vez)
 
+Para Windows:
+
 ```powershell
 .\scripts\install.ps1
+```
+
+O también:
+
+1. Instalar [Python](https://www.python.org/downloads/) y [Node.js](https://nodejs.org/).
+
+2. Crear un entorno virtual.
+
+```bash
+python -m venv venv
+```
+
+3. Instalar requisitos
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+4. Instalar dependencias de npm
+
+```bash
+cd home_simulator
+npm install
 ```
 
 Esto instalará:
@@ -66,10 +92,23 @@ $env:GEMINI_API_KEY = "tu-api-key-de-google-ai"
 
 > Obtén tu API Key gratis en: https://aistudio.google.com/apikey
 
-### 3️⃣ Iniciar el Sistema
+### 3️⃣ Iniciar el Servidor
+
+Para Windows:
 
 ```powershell
 .\scripts\start.ps1
+```
+
+En vez de usar el script, se puede iniciar el sistema a mano.
+
+```bash
+# En una terminal
+python .\server\server_domotico.py
+
+# En otra terminal
+cd .\home_simulator\
+npm run dev
 ```
 
 Esto inicia automáticamente:
@@ -77,12 +116,11 @@ Esto inicia automáticamente:
 - Servidor domótico (puertos 5000, 5001, 8080)
 - Simulador 3D (puerto 3000)
 
-### 4️⃣ Acceder al Sistema
+### 4️⃣ Acceder a los distintos Clientes
 
 | Interfaz | URL/Comando |
 |----------|-------------|
-| 🌐 **Dashboard Web** | Abrir `web\web_dashboard.html` en navegador |
-| 🎮 **Simulador 3D** | http://localhost:3000 (o pestaña en dashboard) |
+| 🌐 **Dashboard Web con Simulador 3D** | `python web\web_server.py`, y entrar en http://localhost:8000 |
 | 💻 **Cliente CLI** | `python client\client_console.py` |
 | 📡 **Monitor UDP** | `python client\udp_listener.py` |
 
@@ -140,7 +178,7 @@ Núcleo del sistema que gestiona todas las comunicaciones:
 
 Asistente de IA integrado en el dashboard web:
 
-- **Motor**: Google Gemini 1.5 Flash
+- **Motor**: Google Gemini 2.5 Flash
 - **Entrada**: Texto o voz (micrófono)
 - **Capacidades**:
   - Control de todos los dispositivos
@@ -184,11 +222,11 @@ Panel de control completo:
 
 | Comando | Sintaxis | Auth | Descripción |
 |---------|----------|------|-------------|
-| `LOGIN` | `LOGIN &lt;user&gt; &lt;pass&gt;` | No | Autenticación |
+| `LOGIN` | `LOGIN <user>; <pass>` | No | Autenticación |
 | `LIST` | `LIST` | No | Listar dispositivos |
-| `STATUS` | `STATUS &lt;id&gt;` | No | Estado de un dispositivo |
-| `SET` | `SET &lt;id&gt; &lt;acción&gt; [valor]` | Sí | Controlar dispositivo |
-| `AUTO_OFF` | `AUTO_OFF &lt;id&gt; &lt;segundos&gt;` | Sí | Programar auto-apagado |
+| `STATUS` | `STATUS <id>` | No | Estado de un dispositivo |
+| `SET` | `SET <id> <acción> [valor]` | Sí | Controlar dispositivo |
+| `AUTO_OFF` | `AUTO_OFF <id> <segundos>` | Sí | Programar auto-apagado |
 | `LOG` | `LOG` | No | Ver historial |
 | `EXIT` | `EXIT` | No | Cerrar conexión |
 
@@ -196,12 +234,12 @@ Panel de control completo:
 
 | Subcomando | Sintaxis | Dispositivos | Ejemplo |
 |------------|----------|--------------|---------|
-| `ON` | `SET &lt;id&gt; ON` | luz, enchufes | `SET luz_salon ON` |
-| `OFF` | `SET &lt;id&gt; OFF` | luz, enchufes | `SET enchufe_tv OFF` |
-| `BRIGHTNESS` | `SET &lt;id&gt; BRIGHTNESS &lt;0-100&gt;` | luz | `SET luz_salon BRIGHTNESS 75` |
-| `COLOR` | `SET &lt;id&gt; COLOR &lt;#RRGGBB&gt;` | luz | `SET luz_salon COLOR #ff6600` |
-| `LEVEL` | `SET cortinas LEVEL &lt;0-100&gt;` | cortinas | `SET cortinas LEVEL 80` |
-| `TEMP` | `SET termostato TEMP &lt;16-30&gt;` | termostato | `SET termostato TEMP 22` |
+| `ON` | `SET <id> ON` | luz, enchufes | `SET luz_salon ON` |
+| `OFF` | `SET <id> OFF` | luz, enchufes | `SET enchufe_tv OFF` |
+| `BRIGHTNESS` | `SET <id> BRIGHTNESS <0-100>` | luz | `SET luz_salon BRIGHTNESS 75` |
+| `COLOR` | `SET <id> COLOR <#RRGGBB>` | luz | `SET luz_salon COLOR #ff6600` |
+| `LEVEL` | `SET cortinas LEVEL <0-100>` | cortinas | `SET cortinas LEVEL 80` |
+| `TEMP` | `SET termostato TEMP <16-30>` | termostato | `SET termostato TEMP 22` |
 
 ### Ejemplo de Sesión TCP
 
@@ -237,7 +275,7 @@ Panel de control completo:
 | Método | Endpoint | Body | Descripción |
 |--------|----------|------|-------------|
 | GET | `/api/status` | - | Estado de todos los dispositivos |
-| GET | `/api/device/&lt;id&gt;` | - | Estado de un dispositivo |
+| GET | `/api/device/<id>` | - | Estado de un dispositivo |
 | POST | `/api/control` | `{id, action}` | Encender/Apagar |
 | POST | `/api/brightness` | `{id, brightness}` | Ajustar brillo (0-100) |
 | POST | `/api/color` | `{id, color}` | Cambiar color (#RRGGBB) |
@@ -432,10 +470,10 @@ Para detalles técnicos avanzados, consulta:
 
 ---
 
-## 👨‍💻 Autor
+## 👨‍💻 Autoress
 
-Sistema Domótico IoT - Proyecto Educativo  
-Comunicaciones Industriales - ICAI  
+Miguel Álvarez Domínguez y Pedro Ballesteros Ranz  
+Comunicaciones Industriales, 2ºMII - ICAI  
 Noviembre 2025
 
 ---

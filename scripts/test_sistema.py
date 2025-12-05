@@ -12,7 +12,6 @@ Uso: python test_sistema.py
 """
 
 import socket
-import json
 import time
 import requests
 from datetime import datetime
@@ -287,7 +286,7 @@ class TestRunner:
                 try:
                     r = requests.get(f"{API_BASE}/status", timeout=5)
                     results.append(r.status_code == 200)
-                except:
+                except Exception:
                     results.append(False)
 
             threads = [threading.Thread(target=api_call) for _ in range(5)]
@@ -313,7 +312,7 @@ class TestRunner:
             try:
                 self.send_tcp_command("EXIT")
                 self.tcp_socket.close()
-            except:
+            except Exception:
                 pass
 
     def run_all_tests(self):

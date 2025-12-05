@@ -871,7 +871,7 @@ def create_api(device_manager: DeviceManager) -> Flask:
                 }
             ), 503
 
-        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("API_KEY") or ""
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("API_KEY")
         if not api_key:
             return jsonify(
                 {
